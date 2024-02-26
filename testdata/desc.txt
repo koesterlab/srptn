@@ -1,0 +1,1 @@
+Tumor and normal samples were sequenced with Illumina NextSeq 2000 using the TruSeq protocol with PCR amplification.

@@ -1,0 +1,3 @@
+sample	condition	library	fq1	fq2
+test1	normal	Illumina	test1.1.fq	test1.2.fq
+test2	tumor	Illumina	test2.1.fq	test2.2.fq

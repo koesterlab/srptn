@@ -12,6 +12,10 @@ class FSDataStore(DataStore):
     base_data: Path = Path("datastore/data")
     base_meta: Path = Path("datastore/meta")
 
+    def clean(self, address: Address):
+        self.meta_path(address).unlink(missing_ok=True)
+        self.files_path(address, FileType.DATA).unlink(missing_ok=True)
+
     def load_sheet(self, address: Address, sheet_name: str) -> pd.DataFrame:
         return pd.read_parquet(self.sheet_path(address, sheet_name))
     
@@ -22,14 +26,15 @@ class FSDataStore(DataStore):
     
     def load_desc(self, address: Address) -> str:
         return self.desc_path(address).read_text()
-
+    
+    def load_file(self, address: Address, file_name: str, file_type: FileType) -> io.BytesIO:
+        return (self.files_path(address, file_type) / file_name).open("rb")
     
     def list_files(self, address: Address, file_type: FileType) -> pd.DataFrame:
         return pd.DataFrame(
             [(f.name, f.stat().st_size) for f in self.files_path(address, file_type).iterdir()],
             columns=["name", "size"]
         )
-
     
     def store_file(self, address: Address, file: io.BytesIO, file_type: FileType):
         folder = self.files_path(address, file_type)

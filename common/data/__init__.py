@@ -55,6 +55,10 @@ class FileType(Enum):
 @dataclass(slots=True)
 class DataStore(ABC):
     @abstractmethod
+    def clean(self, address: Address):
+        ...
+
+    @abstractmethod
     def load_sheet(self, address: Address, sheet_name: str) -> pd.DataFrame:
         ...
     
@@ -64,6 +68,10 @@ class DataStore(ABC):
 
     @abstractmethod
     def load_desc(self, address: Address) -> str:
+        ...
+    
+    @abstractmethod
+    def load_file(self, address: Address, file_name: str, file_type: FileType) -> io.BytesIO:
         ...
 
     @abstractmethod

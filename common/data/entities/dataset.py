@@ -6,15 +6,12 @@ import pandas as pd
 from common.components.files import file_browser
 from common.data import DataStore, FileType
 import streamlit as st
-from humanfriendly import format_size
 
 from common.data import Address, Entity, DataStore
 
 
 @dataclass
 class Dataset(Entity):
-    address: Address
-    desc: str
     sheet: Optional[pd.DataFrame]
     data_files: Optional[List[io.BytesIO]] = None
     meta_files: Optional[List[io.BytesIO]] = None
@@ -30,7 +27,8 @@ class Dataset(Entity):
         meta_files = self.list_files(FileType.META)
         if not meta_files.empty:
             st.subheader("Meta Files")
-            file_browser(meta_files)
+            for name in meta_files["name"]:
+                st.download_button(name, self._data_store.load_file(self.address, name, FileType.META), file_name=name)
 
         files = self.list_files(FileType.DATA)
 
@@ -50,6 +48,7 @@ class Dataset(Entity):
         )
     
     def store(self, data_store: DataStore):
+        data_store.clean(self.address)
         data_store.store_desc(self.address, self.desc)
         data_store.store_sheet(self.address, self.sheet, "sheet")
         for file in self.data_files:

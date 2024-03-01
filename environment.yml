@@ -6,5 +6,6 @@ dependencies:
   - streamlit
   - humanfriendly
   - pandas
+  - snakedeploy
   - pip:
-    - streamlit-pdf-viewer
+      - streamlit-ace

@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List
 
 import pandas as pd
@@ -10,9 +12,7 @@ from common.data import Address, DataStore, Entity, FileType
 
 
 @dataclass
-class Project(Entity):
-    sheets: Dict[str, pd.DataFrame]
-    config: Dict[Any, Any]
+class Analysis(Entity):
 
     def show(self):
         st.header(self.address, divider=True)
@@ -33,3 +33,10 @@ class Project(Entity):
         return cls(
             address, desc, sheets, config
         )
+
+    def store(self, data_store: DataStore, tmp_deployment: TemporaryDirectory):
+        data_store.clean(self.address)
+        data_store.store_desc(self.address, self.desc)
+        for path_obj in Path(tmp_deployment.name).rglob("*"):
+            if path_obj.is_file():
+                data_store.store_file(self.address, open(path_obj), str(path_obj), FileType.DATA)

@@ -16,3 +16,14 @@ def entity_browser(data_store: DataStore, entity_type: Type[Entity], owner: str)
             entity.show()
     else:
         st.warning(f"No {entity_type.__name__.lower()} found")
+
+
+def entity_selector(data_store: DataStore, entity_type: Type[Entity]) -> Entity:
+    entities = data_store.entities(entity_type=entity_type)
+
+    if entities:
+        entities = st.multiselect("Select datasets", entities)
+        return entities
+    else:
+        st.warning(f"No {entity_type.__name__.lower()} found")
+        return []

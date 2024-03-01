@@ -42,9 +42,8 @@ class Entity(ABC):
     def load(cls, data_store: "DataStore", address: Address):
         ...
 
-    @abstractmethod
-    def store(self, data_store: "DataStore"):
-        ...
+    def __str__(self):
+        return str(self.address)
 
 
 class FileType(Enum):
@@ -71,7 +70,7 @@ class DataStore(ABC):
         ...
     
     @abstractmethod
-    def load_file(self, address: Address, file_name: str, file_type: FileType) -> io.BytesIO:
+    def load_file(self, address: Address, file_name: str, file_type: FileType) -> io.IOBase:
         ...
 
     @abstractmethod
@@ -79,7 +78,7 @@ class DataStore(ABC):
         ...
 
     @abstractmethod
-    def store_file(self, address: Address, file: io.BytesIO, file_type: FileType):
+    def store_file(self, address: Address, file: io.IOBase, path: str, file_type: FileType):
         ...
 
     @abstractmethod
@@ -91,7 +90,7 @@ class DataStore(ABC):
         ...
 
     @abstractmethod
-    def entities(self, entity_type: Type[Entity], search_term: Optional[str], only_owned_by: Optional[str]) -> List[Entity]:
+    def entities(self, entity_type: Type[Entity], search_term: Optional[str] = None, only_owned_by: Optional[str] = None) -> List[Entity]:
         ...
 
     @abstractmethod

@@ -8,5 +8,5 @@ class S3DataStore(DataStore):
     #
     # TODO add method to DataStore that returns an access control widget (None for FSDataStore)
     # TODO add page that allows to modify datasets
-    # TODO add page that allows to modify projects
+    # TODO add page that allows to modify analyses
     ...

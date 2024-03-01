@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import io
 from pathlib import Path
+import shutil
 from typing import List, Optional, Type
 from common.data import Address, Entity, FileType
 from common.data import DataStore
@@ -27,7 +28,7 @@ class FSDataStore(DataStore):
     def load_desc(self, address: Address) -> str:
         return self.desc_path(address).read_text()
     
-    def load_file(self, address: Address, file_name: str, file_type: FileType) -> io.BytesIO:
+    def load_file(self, address: Address, file_name: str, file_type: FileType) -> io.IOBase:
         return (self.files_path(address, file_type) / file_name).open("rb")
     
     def list_files(self, address: Address, file_type: FileType) -> pd.DataFrame:
@@ -36,11 +37,11 @@ class FSDataStore(DataStore):
             columns=["name", "size"]
         )
     
-    def store_file(self, address: Address, file: io.BytesIO, file_type: FileType):
+    def store_file(self, address: Address, file: io.IOBase, path: str, file_type: FileType):
         folder = self.files_path(address, file_type)
         folder.mkdir(exist_ok=True, parents=True)
-        with (folder / file.name).open("wb") as f:
-            f.write(file.getbuffer())
+        with (folder / path).open("wb") as f:
+            shutil.copyfileobj(file, f)
 
     
     def store_desc(self, address: Address, desc: str):
@@ -55,7 +56,7 @@ class FSDataStore(DataStore):
         sheet.to_parquet(sheet_path, index=False)
 
     
-    def entities(self, entity_type: Type[Entity], search_term: Optional[str], only_owned_by: Optional[str]) -> List[Entity]:
+    def entities(self, entity_type: Type[Entity], search_term: Optional[str] = None, only_owned_by: Optional[str] = None) -> List[Entity]:
         addr = (Address.from_str(str(desc.parent.relative_to(self.base_meta))) for desc in self.base_meta.glob("**/desc.md"))
         addr = [a for a in addr if a.entity_type == entity_type]
         def take_all(_):

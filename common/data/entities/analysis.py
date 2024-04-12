@@ -8,35 +8,47 @@ import yaml
 import streamlit as st
 
 from common.data import Address, DataStore, Entity, FileType
-
+from common.data.entities.dataset import Dataset
+from common.data.entities.workflow import Workflow
 
 
 @dataclass
 class Analysis(Entity):
+    datasets: List[Dataset]
+    workflow: Workflow
 
     def show(self):
         st.header(self.address, divider=True)
         st.markdown(self.desc)
 
-        # TODO input elements for config
-
-        for name, sheet in self.sheets.items():
-            st.caption(name)
-            st.data_editor(sheet)
-
     @classmethod
     def load(cls, data_store: DataStore, address: Address):
         desc = data_store.load_desc(address)
-        sheets = {f.name: pd.read_parquet(data_store.load_file(address, f.name, FileType.META)) for f in data_store.list_files(address, FileType.META).itertuples() if f.endswith(".parquet")}
-        config = yaml.load(data_store.load_file(address, "config.yaml", FileType.META), Loader=yaml.SafeLoader)
+        sheets = {
+            f.name: pd.read_parquet(
+                data_store.load_file(address, f.name, FileType.DATA)
+            )
+            for f in data_store.list_files(address, FileType.META).itertuples()
+            if f.endswith(".parquet")
+        }
+        if data_store.has_file(address, "config.yaml", FileType.META):
+            config = yaml.load(
+                data_store.load_file(address, "config.yaml", FileType.DATA),
+                Loader=yaml.SafeLoader,
+            )
+        else:
+            config = None
 
-        return cls(
-            address, desc, sheets, config
-        )
+        return cls(address, desc, sheets, config)
 
-    def store(self, data_store: DataStore, tmp_deployment: TemporaryDirectory):
+    def store(self, data_store: DataStore, tmp_deployment_path: Path):
         data_store.clean(self.address)
         data_store.store_desc(self.address, self.desc)
-        for path_obj in Path(tmp_deployment.name).rglob("*"):
+        for path_obj in tmp_deployment_path.rglob("*"):
             if path_obj.is_file():
-                data_store.store_file(self.address, open(path_obj), str(path_obj), FileType.DATA)
+                data_store.store_file(
+                    self.address,
+                    open(path_obj, "br"),
+                    str(path_obj.relative_to(tmp_deployment_path)),
+                    FileType.DATA,
+                )

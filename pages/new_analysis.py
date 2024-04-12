@@ -1,3 +1,4 @@
+from pathlib import Path
 from common.components.descriptions import desc_editor
 from common.components.categories import category_editor
 from common.components.entities import entity_selector
@@ -12,9 +13,9 @@ owner = "koesterlab"
 data_store = FSDataStore()
 
 categories = category_editor()
-dataset_name = st.text_input("Analysis name")
+analysis_name = st.text_input("Analysis name")
 
-address = Address(owner, Dataset, categories=categories, name=dataset_name)
+address = Address(owner, Analysis, categories=categories, name=analysis_name)
 if data_store.has_entity(address):
     st.error(f"Analysis {address} already exists")
     st.stop()
@@ -32,9 +33,8 @@ if workflow is not None:
         if store:
             Analysis(
                 address=address,
-                description=desc,
-                categories=categories,
+                desc=desc,
                 datasets=datasets,
                 workflow=workflow,
-            ).store(data_store, tmp_deployment)
+            ).store(data_store, Path(tmp_deployment))
             st.success(f"Stored analysis {address}")

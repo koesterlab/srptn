@@ -16,13 +16,14 @@ class Address:
     @classmethod
     def from_str(cls, value: str):
         from common.data.entities import _entity_types
+
         owner, entity, *categories, name = value.split("/")
         entity = _entity_types[entity]
         return cls(owner=owner, entity_type=entity, categories=categories, name=name)
 
     def __str__(self):
         return f"{self.owner}/{self.entity_type.__name__.lower()}/{'/'.join(self.categories)}/{self.name}"
-    
+
 
 @dataclass
 class Entity(ABC):
@@ -34,16 +35,17 @@ class Entity(ABC):
             raise ValueError(f"Address type must be '{self.__class__.__name__}'")
 
     @abstractmethod
-    def show(self):
-        ...
+    def show(self): ...
 
     @classmethod
     @abstractmethod
-    def load(cls, data_store: "DataStore", address: Address):
-        ...
+    def load(cls, data_store: "DataStore", address: Address): ...
 
     def __str__(self):
         return str(self.address)
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and self.address == other.address
 
 
 class FileType(Enum):
@@ -54,45 +56,48 @@ class FileType(Enum):
 @dataclass(slots=True)
 class DataStore(ABC):
     @abstractmethod
-    def clean(self, address: Address):
-        ...
+    def clean(self, address: Address): ...
 
     @abstractmethod
-    def load_sheet(self, address: Address, sheet_name: str) -> pd.DataFrame:
-        ...
-    
-    @abstractmethod
-    def has_sheet(self, address: Address, sheet_name: str) -> bool:
-        ...
+    def load_sheet(self, address: Address, sheet_name: str) -> pd.DataFrame: ...
 
     @abstractmethod
-    def load_desc(self, address: Address) -> str:
-        ...
-    
-    @abstractmethod
-    def load_file(self, address: Address, file_name: str, file_type: FileType) -> io.IOBase:
-        ...
+    def has_sheet(self, address: Address, sheet_name: str) -> bool: ...
 
     @abstractmethod
-    def list_files(self, address: Address, file_type: FileType) -> pd.DataFrame:
-        ...
+    def load_desc(self, address: Address) -> str: ...
 
     @abstractmethod
-    def store_file(self, address: Address, file: io.IOBase, path: str, file_type: FileType):
-        ...
+    def load_file(
+        self, address: Address, file_path: str, file_type: FileType
+    ) -> io.IOBase: ...
 
     @abstractmethod
-    def store_desc(self, address: Address, desc: str):
-        ...
+    def has_file(
+        self, address: Address, file_path: str, file_type: FileType
+    ) -> bool: ...
 
     @abstractmethod
-    def store_sheet(self, address: Address, sheet: pd.DataFrame, sheet_name: str):
-        ...
+    def list_files(self, address: Address, file_type: FileType) -> pd.DataFrame: ...
 
     @abstractmethod
-    def entities(self, entity_type: Type[Entity], search_term: Optional[str] = None, only_owned_by: Optional[str] = None) -> List[Entity]:
-        ...
+    def store_file(
+        self, address: Address, file: io.IOBase, file_path: str, file_type: FileType
+    ): ...
 
     @abstractmethod
-    def has_entity(self, address: Address):
-        ...
+    def store_desc(self, address: Address, desc: str): ...
+
+    @abstractmethod
+    def store_sheet(self, address: Address, sheet: pd.DataFrame, sheet_name: str): ...
+
+    @abstractmethod
+    def entities(
+        self,
+        entity_type: Type[Entity],
+        search_term: Optional[str] = None,
+        only_owned_by: Optional[str] = None,
+    ) -> List[Entity]: ...
+
+    @abstractmethod
+    def has_entity(self, address: Address): ...

@@ -1,4 +1,3 @@
-
 from common.components.entities import entity_browser
 from common.data.entities.analysis import Analysis
 

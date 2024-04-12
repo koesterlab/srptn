@@ -53,7 +53,9 @@ if sheet:
 
 meta_files = st.file_uploader("Metadata files", accept_multiple_files=True)
 
-store = st.button("Store", disabled=not desc or not files or (multi_file and sheet is None))
+store = st.button(
+    "Store", disabled=not desc or not files or (multi_file and sheet is None)
+)
 
 if store:
     Dataset(

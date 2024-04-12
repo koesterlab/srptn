@@ -28,7 +28,11 @@ class Dataset(Entity):
         if not meta_files.empty:
             st.subheader("Meta Files")
             for name in meta_files["name"]:
-                st.download_button(name, self._data_store.load_file(self.address, name, FileType.META), file_name=name)
+                st.download_button(
+                    name,
+                    self._data_store.load_file(self.address, name, FileType.META),
+                    file_name=name,
+                )
 
         files = self.list_files(FileType.DATA)
 
@@ -46,15 +50,19 @@ class Dataset(Entity):
         return cls(
             address, data_store.load_desc(address), sheet, _data_store=data_store
         )
-    
+
     def store(self, data_store: DataStore):
         data_store.clean(self.address)
         data_store.store_desc(self.address, self.desc)
         data_store.store_sheet(self.address, self.sheet, "sheet")
         for file in self.data_files:
-            data_store.store_file(self.address, file, file.name, file_type=FileType.DATA)
+            data_store.store_file(
+                self.address, file, file.name, file_type=FileType.DATA
+            )
         for file in self.meta_files:
-            data_store.store_file(self.address, file, file.name, file_type=FileType.META)
-    
+            data_store.store_file(
+                self.address, file, file.name, file_type=FileType.META
+            )
+
     def list_files(self, file_type: FileType):
         return self._data_store.list_files(self.address, file_type=file_type)

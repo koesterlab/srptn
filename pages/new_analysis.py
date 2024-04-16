@@ -29,20 +29,21 @@ datasets = entity_selector(data_store, Dataset)
 workflow = workflow_selector()
 
 if workflow is not None:
-    config, tmp_deployment = workflow_editor(workflow)
-    with st.form("config-editor-form"):
-        config = config_editor(config)
-        store = st.form_submit_button(
-            "Store", disabled=(not desc) | (not analysis_name)
+    with workflow_editor(workflow) as tmp_deployment:
+        config_viewer = st.selectbox(
+            "How would you like to edit the workflow configuration file",
+            ("Form", "Text Editor"),
         )
-    if store and False:
-        Analysis(
-            address=address,
-            desc=desc,
-            datasets=datasets,
-            workflow=workflow,
-        ).store(data_store, Path(tmp_deployment))
-        st.success(f"Stored analysis {address}")
-
-    # with workflow_editor(workflow) as tmp_deployment:
-    #     store = st.button("Store", disabled=(not desc) | (not analysis_name))
+        with st.form("config-editor-form"):
+            config_editor(tmp_deployment, config_viewer)
+            store = st.form_submit_button(
+                "Store", disabled=(not desc) | (not analysis_name)
+            )
+            if store:
+                Analysis(
+                    address=address,
+                    desc=desc,
+                    datasets=datasets,
+                    workflow=workflow,
+                ).store(data_store, Path(tmp_deployment))
+                st.success(f"Stored analysis {address}")

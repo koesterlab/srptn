@@ -2,9 +2,7 @@ from pathlib import Path
 import tempfile
 from typing import Optional
 import streamlit as st
-from streamlit_ace import st_ace
 from snakedeploy.deploy import deploy
-import yaml
 
 from common.data.entities.workflow import Workflow
 
@@ -34,18 +32,5 @@ def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
         dest_path=tmpdir_path,
     )
 
-    # handle config
-    conf_path = tmpdir_path / "config" / "config.yaml"
-    if conf_path.exists():
-        config = st_ace(conf_path.read_text(), language="yaml", height=1)
-        try:
-            # change handling of config to config_editor (TODO)
-            config2 = yaml.load(config, Loader=yaml.SafeLoader)
-        except yaml.YAMLError as e:
-            st.error(f"Error parsing config YAML: {e}")
-            st.stop()
-        with open(conf_path, "w") as f:
-            f.write(config)
-
     # handle sample sheets (TODO)
-    return config2, tmpdir
+    return tmpdir

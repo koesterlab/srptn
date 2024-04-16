@@ -1,5 +1,8 @@
 import streamlit as st
 from streamlit_tags import st_tags
+from streamlit_ace import st_ace
+from pathlib import Path
+import yaml
 
 
 def get_input_element(t: str, v, k: str):
@@ -56,7 +59,27 @@ def get_nested_tabs(config: dict, parent_key: str = ""):
                 get_nested_tabs(value, key_name)
 
 
-def config_editor(config, schema=0):
-    get_nested_tabs(config)
+def load_yaml(config):
+    try:
+        config = yaml.load(config, Loader=yaml.SafeLoader)
+        return config
+    except yaml.YAMLError as e:
+        st.error(f"Error parsing config YAML: {e}")
+        st.stop()
 
-    return config
+
+def config_editor(dir_path, config_viewer):
+    # handle config
+    conf_path = Path(dir_path) / "config" / "config.yaml"
+    if not conf_path.exists():
+        st.error("No config file found!")
+    else:
+        match config_viewer:
+            case x if x == "Form":
+                config = load_yaml(conf_path.read_text())
+                get_nested_tabs(config)
+                config = yaml.dump(config, sort_keys=False)
+            case x if x == "Text Editor":
+                config = st_ace(conf_path.read_text(), language="yaml")
+        with open(conf_path, "w") as f:
+            f.write(config)

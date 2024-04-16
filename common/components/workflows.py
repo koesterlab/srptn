@@ -37,9 +37,10 @@ def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
     # handle config
     conf_path = tmpdir_path / "config" / "config.yaml"
     if conf_path.exists():
-        config = st_ace(conf_path.read_text(), language="yaml")
+        config = st_ace(conf_path.read_text(), language="yaml", height=1)
         try:
-            yaml.load(config, Loader=yaml.SafeLoader)
+            # change handling of config to config_editor (TODO)
+            config2 = yaml.load(config, Loader=yaml.SafeLoader)
         except yaml.YAMLError as e:
             st.error(f"Error parsing config YAML: {e}")
             st.stop()
@@ -47,4 +48,4 @@ def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
             f.write(config)
 
     # handle sample sheets (TODO)
-    return tmpdir
+    return config2, tmpdir

@@ -1,5 +1,6 @@
 channels:
   - conda-forge
+  - bioconda
   - nodefaults
 dependencies:
   - python =3.11
@@ -9,3 +10,4 @@ dependencies:
   - snakedeploy
   - pip:
       - streamlit-ace
+      - streamlit-tags # Editable multiselects

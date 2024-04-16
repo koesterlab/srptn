@@ -3,6 +3,8 @@ from common.components.descriptions import desc_editor
 from common.components.categories import category_editor
 from common.components.entities import entity_selector
 from common.components.workflows import workflow_editor, workflow_selector
+from common.components.config_editor import config_editor
+
 from common.data import Address
 from common.data.entities.analysis import Analysis
 from common.data.fs import FSDataStore
@@ -27,14 +29,20 @@ datasets = entity_selector(data_store, Dataset)
 workflow = workflow_selector()
 
 if workflow is not None:
-    with workflow_editor(workflow) as tmp_deployment:
-        store = st.button("Store", disabled=not desc)
+    config, tmp_deployment = workflow_editor(workflow)
+    with st.form("config-editor-form"):
+        config = config_editor(config)
+        store = st.form_submit_button(
+            "Store", disabled=(not desc) | (not analysis_name)
+        )
+    if store and False:
+        Analysis(
+            address=address,
+            desc=desc,
+            datasets=datasets,
+            workflow=workflow,
+        ).store(data_store, Path(tmp_deployment))
+        st.success(f"Stored analysis {address}")
 
-        if store:
-            Analysis(
-                address=address,
-                desc=desc,
-                datasets=datasets,
-                workflow=workflow,
-            ).store(data_store, Path(tmp_deployment))
-            st.success(f"Stored analysis {address}")
+    # with workflow_editor(workflow) as tmp_deployment:
+    #     store = st.button("Store", disabled=(not desc) | (not analysis_name))

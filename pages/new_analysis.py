@@ -30,9 +30,10 @@ workflow = workflow_selector()
 
 if workflow is not None:
     with workflow_editor(workflow) as tmp_deployment:
-        config_viewer = st.selectbox(
+        config_viewer = st.radio(
             "How would you like to edit the workflow configuration file",
-            ("Form", "Text Editor"),
+            {"Form", "Text Editor"},
+            horizontal=True,
         )
         with st.form("config-editor-form"):
             config_editor(tmp_deployment, config_viewer)

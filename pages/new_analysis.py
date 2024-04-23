@@ -35,16 +35,12 @@ if workflow is not None:
             {"Form", "Text Editor"},
             horizontal=True,
         )
-        with st.form("config-editor-form"):
-            config_editor(tmp_deployment, config_viewer)
-            store = st.form_submit_button(
-                "Store", disabled=(not desc) | (not analysis_name)
-            )
-            if store:
-                Analysis(
-                    address=address,
-                    desc=desc,
-                    datasets=datasets,
-                    workflow=workflow,
-                ).store(data_store, Path(tmp_deployment))
-                st.success(f"Stored analysis {address}")
+        store = config_editor(tmp_deployment, config_viewer, (not desc) | (not analysis_name))
+        if store:
+            Analysis(
+                address=address,
+                desc=desc,
+                datasets=datasets,
+                workflow=workflow,
+            ).store(data_store, Path(tmp_deployment))
+            st.success(f"Stored analysis {address}")

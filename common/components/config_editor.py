@@ -1,38 +1,50 @@
 import streamlit as st
-from streamlit_tags import st_tags
+import pandas as pd
 from streamlit_ace import st_ace
+from streamlit_tags import st_tags
 from pathlib import Path
 import yaml
 
+from common.components.data_editor import data_editor, data_selector
 
-def get_input_element(t: str, v, k: str):
-    match v:
-        case bool(x):
-            return st.checkbox(label=f"{t}", value=x, key=k)
-        case str(x):
-            return st.text_input(label=f"{t}", value=x, key=k)
-        case int(x):
-            return st.number_input(label=f"{t}", value=x, key=k)
-        case float(x) if "e" in str(x).lower():
-            return st.text_input(label=f"{t}", value=x, key=k)
-        case float(x):
-            return st.number_input(
-                label=f"{t}",
-                value=x,
-                key=k,
-                step=10 ** -len(str(x).split(".")[-1]),  # infer significant decimals
+
+@st.experimental_fragment
+def get_input_element(label: str, value, key: str):
+    input_value = None
+    match value:
+        case bool(value):
+            input_value = st.checkbox(label=label, value=value, key=key)
+        case str(value) if value.endswith((".tsv", ".csv", ".xlsx")):
+            input_value, show_data = data_selector(label, value, key)
+            if show_data & isinstance(st.session_state ["data" + key], pd.DataFrame):
+                data_editor(st.session_state ["data" + key])
+        case str(value):
+            input_value = st.text_input(label=label, value=value, key=key)
+        case int(value):
+            input_value = st.number_input(label=label, value=value, key=key)
+        case float(value) if "e" in str(value).lower():
+            input_value = st.text_input(label=label, value=value, key=key)
+        case float(value):
+            input_value = st.number_input(
+                label=label,
+                value=value,
+                key=key,
+                step=10 ** -len(str(value).split(".")[-1]),  # infer significant decimals
                 format="%f",
             )
-        case list(x):
-            return st_tags(
-                label=f"{t}",
-                value=x,
-                key=k,
+        case value if type(value) == list or type(value) == type(None):
+            # empty endpoints default to list
+            input_value = st_tags(
+                label=label,
+                value=value,
+                key=key,
             )
+    return input_value
 
 
 def get_nested_tabs(config: dict, parent_key: str = ""):
-    """Iteratively creates nested Streamlit tabs from a dictionary structure and replaces endpoint values (leaf nodes) from the dictionary with type specific streamlit-inputs.
+    """Iteratively creates nested Streamlit tabs from a dictionary structure and replaces endpoint
+    values (leaf nodes) from the dictionary with type specific streamlit-inputs.
 
     Parameters
     ----------
@@ -68,12 +80,15 @@ def load_yaml(config):
         st.stop()
 
 
-def config_editor(dir_path, config_viewer):
+def config_editor(dir_path, config_viewer, disabled):
     # handle config
+    st.session_state["dir_path"] = dir_path
     conf_path = Path(dir_path) / "config" / "config.yaml"
     if not conf_path.exists():
         st.error("No config file found!")
     else:
+        # with st.container(border=True):
+        st.divider()
         match config_viewer:
             case x if x == "Form":
                 config = load_yaml(conf_path.read_text())
@@ -83,3 +98,5 @@ def config_editor(dir_path, config_viewer):
                 config = st_ace(conf_path.read_text(), language="yaml")
         with open(conf_path, "w") as f:
             f.write(config)
+        store = st.button("Store", disabled=disabled)
+    return store

@@ -55,9 +55,9 @@ class FSDataStore(DataStore):
         file_path = folder / file_path
         file_path.parent.mkdir(exist_ok=True, parents=True)
         with (file_path).open("wb") as f:
-            import pdb
+            #import pdb
 
-            pdb.set_trace()
+            #pdb.set_trace()
             shutil.copyfileobj(file, f)
 
     def store_desc(self, address: Address, desc: str):

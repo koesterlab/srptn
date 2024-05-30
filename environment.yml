@@ -7,7 +7,7 @@ dependencies:
   - streamlit
   - humanfriendly
   - pandas
-  - snakedeploy
+  - snakedeploy >=0.10,<1.0
   - pip:
       - streamlit-ace
       - streamlit-tags # Editable multiselects

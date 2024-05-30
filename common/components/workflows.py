@@ -2,7 +2,9 @@ from pathlib import Path
 import tempfile
 from typing import Optional
 import streamlit as st
-from snakedeploy.deploy import deploy
+from streamlit_ace import st_ace
+from snakedeploy.deploy import WorkflowDeployer
+import yaml
 
 from common.data.entities.workflow import Workflow
 
@@ -24,13 +26,28 @@ def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
     tmpdir = tempfile.TemporaryDirectory()
     tmpdir_path = Path(tmpdir.name)
 
-    deploy(
-        workflow.url,
-        None,
-        tag=workflow.tag,
-        branch=workflow.branch,
-        dest_path=tmpdir_path,
-    )
+    with WorkflowDeployer(workflow.url, tmpdir_path, tag=workflow.tag, branch=workflow.branch) as wd:
+        wd.deploy(None)
+
+        # handle config
+        conf_path = tmpdir_path / "config" / "config.yaml"
+        if conf_path.exists():
+            config_schema = wd.get_json_schema("config")
+
+            # TODO get schemas for other items as they occur in the config file 
+            # (e.g. samples.tsv, units.tsv).
+            # Assumption is that the schemas are named the same by convention 
+            # (therefore e.g. calling wd.get_json_schema("samples")).
+            # This retrieval is needed when the editor for the tables is built.
+
+            config = st_ace(conf_path.read_text(), language="yaml")
+            try:
+                yaml.load(config, Loader=yaml.SafeLoader)
+            except yaml.YAMLError as e:
+                st.error(f"Error parsing config YAML: {e}")
+                st.stop()
+            with open(conf_path, "w") as f:
+                f.write(config)
 
     # handle sample sheets (TODO)
     return tmpdir

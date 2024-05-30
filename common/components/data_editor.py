@@ -18,12 +18,14 @@ def data_editor(data: pd.DataFrame):
     return st.data_editor(data, use_container_width=True, num_rows="dynamic")
 
 
-def data_selector(label:str, value: str, key: str):
+def data_selector(label:str, value: str, key: str, wd):
     col1, col2 = st.columns([9, 1])
     with col1:
         input_value = st.text_input(label=label, value=value, key=key)
-    if "data" + key not in st.session_state:
-        st.session_state["data" + key] = get_data_table(input_value)
+    #if "data" + key not in st.session_state:
+    data_schema = wd.get_json_schema(value.split("/")[-1].split(".")[0])
+    # TODO: Verify DataFrame with schema
+    st.session_state["data" + key] = get_data_table(input_value)
     with col2:
         show_data = toggle_button("Edit", key)
     return input_value, show_data
@@ -41,8 +43,6 @@ def get_data_table(value):
                 df = pd.read_excel(table_path)
     except FileNotFoundError:
         st.error("File does not exist")
-        # (TODO) Fix: Does not produce an error
+        #st.stop()
         return None
     return df
-
-

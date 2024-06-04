@@ -35,7 +35,7 @@ def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
         conf_path = tmpdir_path / "config" / "config.yaml"
         config_viewer = st.radio(
             "Configuration editor mode",
-            {"Form", "Text Editor"},
+            ["Form", "Text Editor"],
             horizontal=True,
         )
         if not conf_path.exists():

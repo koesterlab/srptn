@@ -1,4 +1,12 @@
 import pandas as pd
+import numpy as np
+
+
+def get_nonan_index(value):
+    for idx in range(len(value)):
+        if not value[idx] == np.nan:
+            return idx
+    return
 
 
 def get_property_type(schema):
@@ -22,9 +30,11 @@ def infer_schema(config):
 def infer_type(value):
     match value:
         case value if isinstance(value, pd.Series):
-            value_schema = {"type": "array", "items": infer_type(value[0])}
+            id = get_nonan_index(value)
+            value_schema = {"type": "array", "items": infer_type(value[id]) if id else "missing"}
         case list(value):
-            value_schema = {"type": "array", "items": infer_type(value[0])}
+            id = get_nonan_index(value)
+            value_schema = {"type": "array", "items": infer_type(value[id]) if id else "missing"}
         case bool(value):
             value_schema = {"type": "boolean"}
         case int(value):

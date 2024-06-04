@@ -4,19 +4,59 @@ import pandas as pd
 from common.components.schemas import get_property_type, infer_schema, update_schema
 from common.components.ui_components import toggle_button
 
+#@st.experimental_dialog("Delete a column")
+def add_column(data):
+    with st.popover("Add column"):
+        column = st.text_input("Add column", key="add_column_text")
+        deleted = st.button("Add", key="add_column_button")
+        if deleted and column not in data.columns and column != "":
+            data[column] = ""
+    return data
+
+
+def custom_config(data):
+    with st.popover("Custom config"):
+        uploaded_file = st.file_uploader("Choose a file", type=("xlsx", "tsv", "csv"))
+        replace = st.button("Confirm", key="custom_config_button")
+        if replace and uploaded_file:
+            data = upload_data_table(uploaded_file)
+    return data
+
+
+def delete_column(data):
+    with st.popover("Delete column"):
+        selected = st.selectbox("Select column to delete", options=data.columns, key="delete_column_select")
+        deleted = st.button("Delete", key="delete_column_button")
+        if deleted:
+            data = data.drop(columns=selected)
+    return data
+
+
+def rename_column(data):
+    with st.popover("Rename column"):
+        selected = st.selectbox("Select column to delete", options=data.columns, key="rename_column_select")
+        renamed = st.text_input("Rename column", value=selected, key="rename_column_text")
+        rename = st.button("Rename", key="rename_column_button")
+        if rename:
+            data = data.rename(columns={selected: renamed})
+    return data
+
 
 def data_editor(data: pd.DataFrame):
-    selected = st.selectbox("Select column", options=data.columns)
-    col1, col2 = st.columns(2)
+    col1, col2, col3, col4, col5 = st.columns([0.22, 0.22, 0.24, 0.22, 0.11])
     with col1:
-        renamed = st.text_input("Rename column", value=selected)
+        data = add_column(data)
     with col2:
-        deleted = st.button("Delete column")
-
-    if renamed != selected:
-        data = data.rename(columns={selected: renamed})
-    if deleted:
-        data = data.drop(columns=selected)
+        data = delete_column(data)
+    with col3:
+        data = rename_column(data)
+    with col4:
+        data = custom_config(data)
+    with col5:
+        store = st.button("Store", key="store_data_config")
+    if store:
+        # TODO implement once its possible
+        pass
     return st.data_editor(data, use_container_width=True, num_rows="dynamic")
 
 
@@ -50,20 +90,31 @@ def get_data_table(value):
     try:
         match value:
             case value if value.endswith(".tsv"):
-                df = pd.read_csv(table_path, sep="\t")
+                data = pd.read_csv(table_path, sep="\t")
             case value if value.endswith(".csv"):
-                df = pd.read_csv(table_path)
+                data = pd.read_csv(table_path)
             case value if value.endswith(".xlsx"):
-                df = pd.read_excel(table_path)
+                data = pd.read_excel(table_path)
     except FileNotFoundError:
         st.error(f"File {value} does not exist")
         # st.stop()
         return None
-    return df
+    return data
 
 
 def data_validator(data, schema):
     pass
+
+
+def upload_data_table(uploaded_file):
+    match uploaded_file:
+        case uploaded_file if uploaded_file.type == "text/tab-separated-values":
+            data = pd.read_csv(uploaded_file, sep="\t")
+        case uploaded_file if uploaded_file.type == "text/csv":
+            data = pd.read_csv(uploaded_file)
+        case uploaded_file if uploaded_file.type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+            data = pd.read_excel(uploaded_file)
+    return data
 
 
 def validate_data_with_schema(data, schema):

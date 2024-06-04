@@ -4,7 +4,7 @@ channels:
   - nodefaults
 dependencies:
   - python=3.11
-  - streamlit
+  - streamlit=1.35.0
   - humanfriendly
   - pandas
   - pytest=8.2.1

@@ -1,0 +1,162 @@
+properties:
+  bootstrap_plots:
+    properties:
+      FDR:
+        type: number
+      color_by:
+        type: string
+      top_n:
+        type: integer
+    type: object
+  diffexp:
+    properties:
+      exclude:
+        type: missing
+      genes_of_interest:
+        properties:
+          activate:
+            type: boolean
+          genelist:
+            type: string
+        type: object
+      models:
+        properties:
+          model_X:
+            properties:
+              base_level:
+                type: string
+              full:
+                type: string
+              primary_variable:
+                type: string
+              reduced:
+                type: string
+            type: object
+        type: object
+      sig-level:
+        properties:
+          ma-plot:
+            type: number
+          qq-plot:
+            type: number
+          volcano-plot:
+            type: number
+        type: object
+    type: object
+  diffsplice:
+    properties:
+      activate:
+        type: boolean
+      coding_cutoff:
+        type: number
+      fdr:
+        type: number
+      min_effect_size:
+        type: number
+      remove_noncoding_orfs:
+        type: boolean
+    type: object
+  enrichment:
+    properties:
+      fgsea:
+        properties:
+          activate:
+            type: boolean
+          eps:
+            type: number
+          fdr_gene_set:
+            type: number
+          gene_sets_file:
+            type: string
+        type: object
+      goatools:
+        properties:
+          activate:
+            type: boolean
+          fdr_genes:
+            type: number
+          fdr_go_terms:
+            type: number
+        type: object
+      spia:
+        properties:
+          activate:
+            type: boolean
+          pathway_database:
+            type: string
+        type: object
+    type: object
+  experiment:
+    properties:
+      3-prime-rna-seq:
+        properties:
+          activate:
+            type: boolean
+          plot-qc:
+            type: string
+          vendor:
+            type: string
+        type: object
+    type: object
+  params:
+    properties:
+      cutadapt-pe:
+        properties:
+          adapters:
+            type: string
+          extra:
+            type: string
+        type: object
+      cutadapt-se:
+        properties:
+          adapters:
+            type: string
+          extra:
+            type: string
+        type: object
+      kallisto:
+        type: string
+    type: object
+  pca:
+    properties:
+      labels:
+        items:
+          type: string
+        type: array
+    type: object
+  plot_vars:
+    properties:
+      sig_level:
+        type: number
+    type: object
+  resources:
+    properties:
+      ontology:
+        properties:
+          gene_ontology:
+            type: string
+        type: object
+      ref:
+        properties:
+          build:
+            type: string
+          pfam:
+            type: string
+          release:
+            type: string
+          representative_transcripts:
+            type: string
+          species:
+            type: string
+        type: object
+    type: object
+  samples:
+    type: string
+  scatter:
+    properties:
+      activate:
+        type: boolean
+    type: object
+  units:
+    type: string
+type: object

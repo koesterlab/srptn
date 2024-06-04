@@ -30,7 +30,7 @@ workflow = workflow_selector()
 if workflow is not None:
     with workflow_editor(workflow) as tmp_deployment:
         store = st.button("Store", disabled=(not desc) | (not analysis_name))
-        if store: # TODO More elaborate reporting, f.e. input_names
+        if store: 
             if st.session_state.get("valid_config_form"): 
                 valid = not False in st.session_state["valid_config_form"].values()
             else:
@@ -45,4 +45,5 @@ if workflow is not None:
                 st.success(f"Stored analysis {address}")
             else:
                 st.error("One or more of the required inputs are not present")
+                # TODO More elaborate reporting, f.e. input_names
             

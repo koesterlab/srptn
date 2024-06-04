@@ -3,10 +3,11 @@ channels:
   - bioconda
   - nodefaults
 dependencies:
-  - python =3.11
+  - python=3.11
   - streamlit
   - humanfriendly
   - pandas
+  - pytest=8.2.1
   - snakedeploy >=0.10,<1.0
   - pip:
       - streamlit-ace

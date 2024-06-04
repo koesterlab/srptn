@@ -12,7 +12,6 @@ def toggle_button(label, key):
     Returns:
         bool: _description_
     """
-    @st.experimental_fragment
     def toggle(state):
         st.session_state[state] = not st.session_state[state]
     unique_key = label.lower() + key

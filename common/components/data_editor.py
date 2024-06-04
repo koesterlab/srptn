@@ -1,10 +1,12 @@
 import streamlit as st
+from streamlit_ace import st_ace
 import pandas as pd
 
 from common.components.schemas import get_property_type, infer_schema, update_schema
 from common.components.ui_components import toggle_button
 
-#@st.experimental_dialog("Delete a column")
+
+# @st.experimental_dialog("Delete a column")
 def add_column(data):
     with st.popover("Add column"):
         column = st.text_input("Add column", key="add_column_text")
@@ -25,7 +27,9 @@ def custom_config(data):
 
 def delete_column(data):
     with st.popover("Delete column"):
-        selected = st.selectbox("Select column to delete", options=data.columns, key="delete_column_select")
+        selected = st.selectbox(
+            "Select column to delete", options=data.columns, key="delete_column_select"
+        )
         deleted = st.button("Delete", key="delete_column_button")
         if deleted:
             data = data.drop(columns=selected)
@@ -34,16 +38,51 @@ def delete_column(data):
 
 def rename_column(data):
     with st.popover("Rename column"):
-        selected = st.selectbox("Select column to delete", options=data.columns, key="rename_column_select")
-        renamed = st.text_input("Rename column", value=selected, key="rename_column_text")
+        selected = st.selectbox(
+            "Select column to delete", options=data.columns, key="rename_column_select"
+        )
+        renamed = st.text_input(
+            "Rename column", value=selected, key="rename_column_text"
+        )
         rename = st.button("Rename", key="rename_column_button")
         if rename:
             data = data.rename(columns={selected: renamed})
     return data
 
 
+def execute_custom_code(df, user_code):
+    local_vars = {"df": df}
+    exec(user_code, {}, local_vars)
+    df = local_vars.get("df", df)
+    return df
+
+
+def advanced_user_code(data):
+    with st.expander("Advanced config modification"):
+        user_code = st_ace("", auto_update=True, language="python")
+        user_code
+
+        col1, col2 = st.columns([0.14, 0.86], gap="small")
+        with col1:
+            preview = st.button("Preview", key="advance_manipulation_preview_config")
+        with col2:
+            apply = st.button("Apply", key="advance_manipulation_apply_config")
+    if preview:
+        preview_data = data
+        preview_data = execute_custom_code(preview_data, user_code)
+        st.data_editor(
+            preview_data,
+            use_container_width=True,
+            disabled=True,
+            num_rows="fixed",
+            key="advance_manipulation_preview_window",
+        )
+    if apply:
+        data = execute_custom_code(data, user_code)
+    return data
+
 def data_editor(data: pd.DataFrame):
-    col1, col2, col3, col4, col5 = st.columns([0.22, 0.22, 0.24, 0.22, 0.11])
+    col1, col2, col3, col4, col5 = st.columns([0.20, 0.22, 0.24, 0.22, 0.11])
     with col1:
         data = add_column(data)
     with col2:
@@ -57,7 +96,9 @@ def data_editor(data: pd.DataFrame):
     if store:
         # TODO implement once its possible
         pass
-    return st.data_editor(data, use_container_width=True, num_rows="dynamic")
+    data = advanced_user_code(data)
+    input = st.data_editor(data, use_container_width=True, num_rows="dynamic")
+    return input
 
 
 def data_selector(label: str, value: str, key: str, wd):
@@ -82,6 +123,8 @@ def data_selector(label: str, value: str, key: str, wd):
 
     with col2:
         show_data = toggle_button("Edit", key)
+        # if show_data:
+        # st.experimental_rerun()
     return input_value, show_data
 
 
@@ -112,14 +155,16 @@ def upload_data_table(uploaded_file):
             data = pd.read_csv(uploaded_file, sep="\t")
         case uploaded_file if uploaded_file.type == "text/csv":
             data = pd.read_csv(uploaded_file)
-        case uploaded_file if uploaded_file.type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        case (
+            uploaded_file
+        ) if uploaded_file.type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
             data = pd.read_excel(uploaded_file)
     return data
 
 
 def validate_data_with_schema(data, schema):
     for field in schema.get("properties"):
-        #print(field)
+        # print(field)
         continue
-    #print(schema)
-    #print(data.to_dict(orient="list"))
+    # print(schema)
+    # print(data.to_dict(orient="list"))

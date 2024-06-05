@@ -1,16 +1,18 @@
 import streamlit as st
-import os
 
 
-def toggle_button(label, key):
-    """Minimal wrapper around st.button that mimics a toggle.
+def toggle_button(label: str, key: str):
+    """
+    Minimal wrapper around st.button that mimics a toggle.
 
     Args:
-        label (str): Button label
-        k (str): Button key
+        label : str 
+            Button label
+        key : str 
+            Button key
 
     Returns:
-        bool: _description_
+        bool: state
     """
     def toggle(state):
         st.session_state[state] = not st.session_state[state]

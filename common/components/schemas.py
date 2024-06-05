@@ -1,23 +1,70 @@
 import pandas as pd
-import numpy as np
 
 
-def get_nonan_index(value):
-    for idx in range(len(value)):
-        if not value[idx] == np.nan:
+def get_nonan_index(value: list):
+    """
+    Find the index of the first non-NaN value in the list.
+
+    Parameters
+    ----------
+    value : list
+        A list of values to search for the first non-NaN value.
+
+    Returns
+    -------
+    int or None
+        The index of the first non-NaN value in the list, or None if all values are NaN.
+
+    Notes
+    -----
+    This function iterates over the list to find the first value that is not NaN.
+    """
+    for idx, v in enumerate(value):
+        if not pd.isna(v):
             return idx
-    return
+    return None
 
 
-def get_property_type(schema):
-    if schema.get("properties"):
-        prop_key = "properties"
-    elif schema.get("patternProperties"):
-        prop_key = "patternProperties"
-    return prop_key
+def get_property_type(schema: dict):
+    """
+    Determine the property type key in a schema dictionary.
+
+    Parameters
+    ----------
+    schema : dict
+        A dictionary representing the schema.
+
+    Returns
+    -------
+    str or None
+        The key of the property type in the schema, either "properties" or "patternProperties",
+        or None if neither is found.
+    """
+    if "properties" in schema:
+        return "properties"
+    elif "patternProperties" in schema:
+        return "patternProperties"
+    return None
 
 
-def infer_schema(config):
+def infer_schema(config: dict):
+    """
+    Infer a JSON schema from a configuration dictionary.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration dictionary to infer the schema from.
+
+    Returns
+    -------
+    dict
+        The inferred JSON schema.
+
+    Notes
+    -----
+    This function recursively infers the schema for nested dictionaries.
+    """
     schema = {"type": "object", "properties": {}}
     for key, value in config.items():
         if isinstance(value, dict):
@@ -28,6 +75,23 @@ def infer_schema(config):
 
 
 def infer_type(value):
+    """
+    Infer the JSON schema type for a given value.
+
+    Parameters
+    ----------
+    value : Any
+        The value for which to infer the type.
+
+    Returns
+    -------
+    dict
+        The inferred JSON schema type definition.
+
+    Notes
+    -----
+    This function determines the JSON schema type based on the Python type of the input value.
+    """
     match value:
         case value if isinstance(value, pd.Series):
             id = get_nonan_index(value)
@@ -48,7 +112,27 @@ def infer_type(value):
     return value_schema
 
 
-def update_schema(schema, config):
+def update_schema(schema: dict, config: dict):
+    """
+    Update a JSON schema based on a config dictionary.
+
+    Parameters
+    ----------
+    schema : dict
+        The existing JSON schema to be updated.
+    config : dict
+        The config dictionary used to update the schema.
+
+    Returns
+    -------
+    dict
+        The updated JSON schema.
+
+    Notes
+    -----
+    This function updates the schema by adding missing entries from the config.
+    It recursively processes nested dictionaries to ensure the schema is fully updated.
+    """
     prop_key = get_property_type(schema)
     items = []
     for key, value in config.items():
@@ -56,18 +140,18 @@ def update_schema(schema, config):
             items.append((key, value))
         elif key not in schema.get(prop_key).keys():
             print(f'Category "{key}" found in config that has no entry in the schema!')
-            schema.get(prop_key)[key] = infer_type(value)
+            schema[prop_key][key] = infer_type(value)
     if items:
         for key, value in items:
             if prop_key == "patternProperties":
                 # assert re.search(list(schema.get(prop_key).keys())[0], key) # TODO: Proper Matching
-                key = list(schema.get(prop_key).keys())[0]
-            new_schema = schema.get(prop_key).get(key)
+                key = list(schema[prop_key].keys())[0]
+            new_schema = schema[prop_key].get(key)
             if new_schema == None:
                 print(
                     f'Category "{key}" found in config that has no entry in the schema!'
                 )
-                schema.get(prop_key)[key] = infer_schema(config.get(key))
-                new_schema = schema.get(prop_key).get(key)
+                schema[prop_key][key] = infer_schema(config[key])
+                new_schema = schema[prop_key][key]
             update_schema(new_schema, value)
     return schema

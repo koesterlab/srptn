@@ -2,12 +2,28 @@ import streamlit as st
 from streamlit_ace import st_ace
 import pandas as pd
 
-from common.components.schemas import get_property_type, infer_schema, update_schema
+from common.components.schemas import infer_schema, update_schema
 from common.components.ui_components import toggle_button
 
 
-# @st.experimental_dialog("Delete a column")
-def add_column(data):
+def add_column(data: pd.DataFrame):
+    """
+    Add a new column to the dataframe.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        The dataframe to which the column will be added.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The dataframe with the new column added.
+
+    Notes
+    -----
+    This function uses a Streamlit popover to input the column name and add it to the dataframe.
+    """
     with st.popover("Add column"):
         column = st.text_input("Add column", key="add_column_text")
         deleted = st.button("Add", key="add_column_button")
@@ -16,7 +32,24 @@ def add_column(data):
     return data
 
 
-def custom_config(data):
+def custom_config(data: pd.DataFrame):
+    """
+    Upload a custom configuration file and replace the dataframe.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        The dataframe to be replaced with the uploaded file.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The dataframe loaded from the uploaded file.
+
+    Notes
+    -----
+    This function uses a Streamlit popover to upload a file and replace the dataframe.
+    """
     with st.popover("Custom config"):
         uploaded_file = st.file_uploader("Choose a file", type=("xlsx", "tsv", "csv"))
         replace = st.button("Confirm", key="custom_config_button")
@@ -25,7 +58,24 @@ def custom_config(data):
     return data
 
 
-def delete_column(data):
+def delete_column(data: pd.DataFrame):
+    """
+    Delete a column from the dataframe.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        The dataframe from which the column will be deleted.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The dataframe with the specified column deleted.
+
+    Notes
+    -----
+    This function uses a Streamlit popover to select and delete a column from the dataframe.
+    """
     with st.popover("Delete column"):
         selected = st.selectbox(
             "Select column to delete", options=data.columns, key="delete_column_select"
@@ -36,7 +86,24 @@ def delete_column(data):
     return data
 
 
-def rename_column(data):
+def rename_column(data: pd.DataFrame):
+    """
+    Rename a column in the dataframe.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        The dataframe containing the column to be renamed.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The dataframe with the renamed column.
+
+    Notes
+    -----
+    This function uses a Streamlit popover to rename a column in the dataframe.
+    """
     with st.popover("Rename column"):
         selected = st.selectbox(
             "Select column to delete", options=data.columns, key="rename_column_select"
@@ -50,16 +117,57 @@ def rename_column(data):
     return data
 
 
-def execute_custom_code(df, user_code):
-    local_vars = {"df": df}
+def execute_custom_code(data: pd.DataFrame, user_code: str):
+    """
+    Execute custom code provided by the user on the dataframe.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        The dataframe on which the custom code will be executed.
+    user_code : str
+        The custom code to execute on the dataframe.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The dataframe after the custom code has been executed.
+
+    Notes
+    -----
+    This function uses Python's `exec` to run the custom code in a local scope.
+    """
+    local_vars = {"df": data}
     exec(user_code, {}, local_vars)
-    df = local_vars.get("df", df)
-    return df
+    data = local_vars.get("df", data)
+    return data
 
 
-def advanced_user_code(data):
+def process_user_code(data: pd.DataFrame):
+    """
+    Modify the dataframe using user-provided Python code.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        The dataframe to be modified by the user's custom code.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The dataframe after applying the user's custom modifications.
+
+    Notes
+    -----
+    This function allows users to input and execute custom Python code to modify the dataframe.
+    It provides a preview and an apply option for the modifications.
+    """
     with st.expander("Advanced config modification"):
-        user_code = st_ace("", auto_update=True, language="python")
+        user_code = st_ace(
+            "# The config is available as df: pd.DataFrame\n# Simply modify the df, e.g. df['lorem'] = 'ipsum'\n",
+            auto_update=True,
+            language="python",
+        )
         user_code
 
         col1, col2 = st.columns([0.14, 0.86], gap="small")
@@ -67,21 +175,40 @@ def advanced_user_code(data):
             preview = st.button("Preview", key="advance_manipulation_preview_config")
         with col2:
             apply = st.button("Apply", key="advance_manipulation_apply_config")
-    if preview:
-        preview_data = data
-        preview_data = execute_custom_code(preview_data, user_code)
-        st.data_editor(
-            preview_data,
-            use_container_width=True,
-            disabled=True,
-            num_rows="fixed",
-            key="advance_manipulation_preview_window",
-        )
+        if preview:
+            preview_data = data.copy()
+            preview_data = execute_custom_code(preview_data, user_code)
+            st.data_editor(
+                preview_data,
+                use_container_width=True,
+                disabled=True,
+                num_rows="fixed",
+                key="advance_manipulation_preview_window",
+            )
     if apply:
         data = execute_custom_code(data, user_code)
     return data
 
+
 def data_editor(data: pd.DataFrame):
+    """
+    Provide an interface for editing a dataframe with various options.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        The dataframe to be edited.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The dataframe after applying the edits.
+
+    Notes
+    -----
+    This function provides a Streamlit interface for adding, deleting, renaming columns,
+    applying custom configurations, and executing user-provided Python code to modify the dataframe.
+    """
     col1, col2, col3, col4, col5 = st.columns([0.20, 0.22, 0.24, 0.22, 0.11])
     with col1:
         data = add_column(data)
@@ -96,7 +223,7 @@ def data_editor(data: pd.DataFrame):
     if store:
         # TODO implement once its possible
         pass
-    data = advanced_user_code(data)
+    data = process_user_code(data)
     input = st.data_editor(data, use_container_width=True, num_rows="dynamic")
     return input
 
@@ -119,37 +246,67 @@ def data_selector(label: str, value: str, key: str, wd):
     else:
         final_schema = infer_schema(st.session_state["data" + key])
     if data_schema:
-        validate_data_with_schema(st.session_state["data" + key], final_schema)
+        validate_data(st.session_state["data" + key], final_schema)
 
     with col2:
         show_data = toggle_button("Edit", key)
-        # if show_data:
-        # st.experimental_rerun()
     return input_value, show_data
 
 
-def get_data_table(value):
-    table_path = f"{st.session_state['dir_path']}/{value}"
+def get_data_table(file_name: str):
+    """
+    Load a data table from a file based on its extension.
+
+    Parameters
+    ----------
+    file_name : str
+        The name of the file to be loaded.
+
+    Returns
+    -------
+    pandas.DataFrame or None
+        The loaded data table as a pandas DataFrame, or None if the file is not found.
+
+    Notes
+    -----
+    This function reads a file from the directory specified in the Streamlit session state and loads it into a
+    pandas DataFrame. The function supports `.tsv`, `.csv`, and `.xlsx` file formats.
+    """
+    table_path = f"{st.session_state['dir_path']}/{file_name}"
     try:
-        match value:
-            case value if value.endswith(".tsv"):
+        match file_name:
+            case file_name if file_name.endswith(".tsv"):
                 data = pd.read_csv(table_path, sep="\t")
-            case value if value.endswith(".csv"):
+            case file_name if file_name.endswith(".csv"):
                 data = pd.read_csv(table_path)
-            case value if value.endswith(".xlsx"):
+            case file_name if file_name.endswith(".xlsx"):
                 data = pd.read_excel(table_path)
     except FileNotFoundError:
-        st.error(f"File {value} does not exist")
-        # st.stop()
+        st.error(f"File {file_name} does not exist")
         return None
     return data
 
 
-def data_validator(data, schema):
-    pass
-
-
 def upload_data_table(uploaded_file):
+    """
+    Load a data table from an uploaded file based on its MIME type.
+
+    Parameters
+    ----------
+    uploaded_file : UploadedFile
+        The file uploaded by the user via Streamlit's file uploader.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The loaded data table as a pandas DataFrame.
+
+    Notes
+    -----
+    This function reads an uploaded file and loads it into a pandas DataFrame.
+    The function supports text/tab-separated-values (`.tsv`), text/csv (`.csv`),
+    and Excel (`.xlsx`) file formats.
+    """
     match uploaded_file:
         case uploaded_file if uploaded_file.type == "text/tab-separated-values":
             data = pd.read_csv(uploaded_file, sep="\t")
@@ -162,7 +319,7 @@ def upload_data_table(uploaded_file):
     return data
 
 
-def validate_data_with_schema(data, schema):
+def validate_data(data, schema):
     for field in schema.get("properties"):
         # print(field)
         continue

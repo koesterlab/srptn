@@ -1,6 +1,7 @@
 import streamlit as st
 from streamlit_ace import st_ace
 import pandas as pd
+import polars as pl
 
 from common.components.schemas import infer_schema, update_schema
 from common.components.ui_components import toggle_button
@@ -32,7 +33,7 @@ def add_column(data: pd.DataFrame):
     return data
 
 
-def custom_config(data: pd.DataFrame):
+def custom_upload(data: pd.DataFrame):
     """
     Upload a custom configuration file and replace the dataframe.
 
@@ -50,9 +51,9 @@ def custom_config(data: pd.DataFrame):
     -----
     This function uses a Streamlit popover to upload a file and replace the dataframe.
     """
-    with st.popover("Custom config"):
+    with st.popover("Upload"):
         uploaded_file = st.file_uploader("Choose a file", type=("xlsx", "tsv", "csv"))
-        replace = st.button("Confirm", key="custom_config_button")
+        replace = st.button("Confirm", key="custom_upload_button")
         if replace and uploaded_file:
             data = upload_data_table(uploaded_file)
     return data
@@ -117,16 +118,18 @@ def rename_column(data: pd.DataFrame):
     return data
 
 
-def execute_custom_code(data: pd.DataFrame, user_code: str):
+def execute_custom_code(data, user_code: str, dataframe_type: str):
     """
     Execute custom code provided by the user on the dataframe.
 
     Parameters
     ----------
-    data : pandas.DataFrame
+    data
         The dataframe on which the custom code will be executed.
     user_code : str
         The custom code to execute on the dataframe.
+    dataframe_type : str
+        The type of dataframe accessible on the frontend.
 
     Returns
     -------
@@ -136,10 +139,29 @@ def execute_custom_code(data: pd.DataFrame, user_code: str):
     Notes
     -----
     This function uses Python's `exec` to run the custom code in a local scope.
+    The dataframes can either be in Pandas or Polars.
     """
     local_vars = {"df": data}
-    exec(user_code, {}, local_vars)
+    for key, value in st.session_state.items():
+        if (
+            key.startswith("workflow_config-")
+            and key.endswith("-data")
+            and isinstance(value, pd.DataFrame)
+        ):
+            if dataframe_type == "Polars": # TODO cleaner approach to this
+                if not isinstance(data, pl.DataFrame):
+                    data = pl.from_pandas(data)
+                value = pl.from_pandas(value)
+                if value.to_dict(as_series=False) == data.to_dict(as_series=False):
+                    local_vars[key.split("-")[1]] = value
+            if dataframe_type == "Pandas":
+                if value.to_string() != data.to_string():
+                    local_vars[key.split("-")[1]] = value
+    exec(user_code, {}, local_vars)  # Sandboxing Polars?
     data = local_vars.get("df", data)
+    if dataframe_type == "Polars":
+        if not isinstance(data, pd.DataFrame):
+            data = data.to_pandas()
     return data
 
 
@@ -162,22 +184,43 @@ def process_user_code(data: pd.DataFrame):
     This function allows users to input and execute custom Python code to modify the dataframe.
     It provides a preview and an apply option for the modifications.
     """
-    with st.expander("Advanced config modification"):
+    with st.expander("Advanced table modification"):
+        dataframe_type = st.radio(
+            "Dataframe type", options=["Pandas", "Polars"], horizontal=True
+        )
+
+        acestring = "# Simply modify the df, e.g. df['lorem'] = 'ipsum'\n# Other tables are accessbile through their file name\n"
+        if dataframe_type == "Polars":
+            acestring = "# The table is available as df: pl.DataFrame\n" + acestring
+        else:
+            acestring = "# The table is available as df: pd.DataFrame\n" + acestring
         user_code = st_ace(
-            "# The config is available as df: pd.DataFrame\n# Simply modify the df, e.g. df['lorem'] = 'ipsum'\n",
+            acestring,
             auto_update=True,
             language="python",
         )
-        user_code
+        no_import = True
+        if "import " in user_code:
+            for line in user_code:
+                if not line.strip().startswith("import "):
+                    no_import = False
+                    st.error("Remove line with 'import' as no imports are allowed.")
+                    break
 
         col1, col2 = st.columns([0.14, 0.86], gap="small")
         with col1:
-            preview = st.button("Preview", key="advance_manipulation_preview_config")
+            preview = st.button(
+                "Preview",
+                key="advance_manipulation_preview_config",
+                disabled=not no_import,
+            )
         with col2:
-            apply = st.button("Apply", key="advance_manipulation_apply_config")
+            apply = st.button(
+                "Apply", key="advance_manipulation_apply_config", disabled=not no_import
+            )
         if preview:
             preview_data = data.copy()
-            preview_data = execute_custom_code(preview_data, user_code)
+            preview_data = execute_custom_code(preview_data, user_code, dataframe_type)
             st.data_editor(
                 preview_data,
                 use_container_width=True,
@@ -186,7 +229,7 @@ def process_user_code(data: pd.DataFrame):
                 key="advance_manipulation_preview_window",
             )
     if apply:
-        data = execute_custom_code(data, user_code)
+        data = execute_custom_code(data, user_code, dataframe_type)
     return data
 
 
@@ -217,12 +260,12 @@ def data_editor(data: pd.DataFrame):
     with col3:
         data = rename_column(data)
     with col4:
-        data = custom_config(data)
-    with col5:
-        store = st.button("Store", key="store_data_config")
-    if store:
-        # TODO implement once its possible
-        pass
+        data = custom_upload(data)
+    # with col5:
+    #    store = st.button("Store", key="store_data_config")
+    # if store:
+    # TODO implement once its possible
+    #    pass
     data = process_user_code(data)
     input = st.data_editor(data, use_container_width=True, num_rows="dynamic")
     return input
@@ -232,25 +275,28 @@ def data_selector(label: str, value: str, key: str, wd):
     col1, col2 = st.columns([9, 1])
     with col1:
         input_value = st.text_input(label=label, value=value, key=key)
-
-    if "data" + key not in st.session_state:
-        st.session_state["data" + key] = get_data_table(input_value)
-    if not isinstance(st.session_state["data" + key], pd.DataFrame):
+    data_key = "workflow_config-" + key + "-data"
+    if data_key not in st.session_state:
+        st.session_state[data_key] = get_data_table(input_value)
+    if not isinstance(st.session_state[data_key], pd.DataFrame):
         st.error(f'{value.split("/")[-1]} not found!')
-        return input_value, False  # TODO Handle missing error
+        return input_value, False
     # restructure to create output from schema if present
 
     data_schema = wd.get_json_schema(value.split("/")[-1].split(".")[0])
     if data_schema:
-        final_schema = update_schema(data_schema, st.session_state["data" + key])
+        final_schema = update_schema(data_schema, st.session_state[data_key])
     else:
-        final_schema = infer_schema(st.session_state["data" + key])
-    if data_schema:
-        validate_data(st.session_state["data" + key], final_schema)
+        final_schema = infer_schema(st.session_state[data_key])
+    # if final_schema:
+    #    validate_data(st.session_state[data_key], final_schema) #.to_dict(orient="list")
 
     with col2:
-        show_data = toggle_button("Edit", key)
+        show_data = toggle_button("Edit", "workflow_config-" + key)
     return input_value, show_data
+
+
+st.cache_data()
 
 
 def get_data_table(file_name: str):
@@ -272,7 +318,7 @@ def get_data_table(file_name: str):
     This function reads a file from the directory specified in the Streamlit session state and loads it into a
     pandas DataFrame. The function supports `.tsv`, `.csv`, and `.xlsx` file formats.
     """
-    table_path = f"{st.session_state['dir_path']}/{file_name}"
+    table_path = f"{st.session_state['workflow_config-dir_path']}/{file_name}"
     try:
         match file_name:
             case file_name if file_name.endswith(".tsv"):
@@ -321,7 +367,7 @@ def upload_data_table(uploaded_file):
 
 def validate_data(data, schema):
     for field in schema.get("properties"):
-        # print(field)
-        continue
-    # print(schema)
-    # print(data.to_dict(orient="list"))
+        if field in schema.get("required"):
+            for value in data[field]:
+                if not value:
+                    st.error(f"{field} is filled incorrectly")

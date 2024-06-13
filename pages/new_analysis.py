@@ -10,11 +10,13 @@ from common.data.fs import FSDataStore
 from common.data.entities.dataset import Dataset
 import streamlit as st
 
+from common.components.ui_components import persistend_text_input
+
 owner = "koesterlab"
 data_store = FSDataStore()
 
 categories = category_editor()
-analysis_name = st.text_input("Analysis name")
+analysis_name = persistend_text_input("Analysis name", "workflow-analysis_name")
 
 address = Address(owner, Analysis, categories=categories, name=analysis_name)
 if data_store.has_entity(address):
@@ -31,8 +33,8 @@ if workflow is not None:
     with workflow_editor(workflow) as tmp_deployment:
         store = st.button("Store", disabled=(not desc) | (not analysis_name))
         if store: 
-            if st.session_state.get("valid_config_form"): 
-                valid = not False in st.session_state["valid_config_form"].values()
+            if st.session_state.get("workflow_config-form-valid"): 
+                valid = not False in st.session_state["workflow_config-form-valid"].values()
             else:
                 valid = True
             if valid:

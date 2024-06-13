@@ -8,14 +8,25 @@ import yaml
 
 from common.data.entities.workflow import Workflow
 from common.components.config_editor import config_editor
+from common.components.ui_components import persistend_text_input
 
 
+st.cache_data()
 def workflow_selector():
-    url = st.text_input(
-        "Workflow repository URL (e.g. https://github.com/snakemake-workflows/rna-seq-kallisto-sleuth)"
+    url = persistend_text_input(
+        "Workflow repository URL (e.g. https://github.com/snakemake-workflows/rna-seq-kallisto-sleuth)",
+        "workflow-url",
     )
-    tag = st.text_input("Workflow repository tag (optional)")
-    branch = st.text_input("Workflow repository branch (optional)")
+
+    tag = persistend_text_input(
+        "Workflow repository tag (optional)",
+        "workflow-tag",
+    )
+
+    branch = persistend_text_input(
+        "Workflow repository branch (optional)",
+        "workflow-branch",
+    )
 
     if url and (tag or branch):
         return Workflow(url=url, tag=tag, branch=branch)
@@ -27,11 +38,13 @@ def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
     tmpdir = tempfile.TemporaryDirectory()
     tmpdir_path = Path(tmpdir.name)
 
-    with WorkflowDeployer(workflow.url, tmpdir_path, tag=workflow.tag, branch=workflow.branch) as wd:
+    with WorkflowDeployer(
+        workflow.url, tmpdir_path, tag=workflow.tag, branch=workflow.branch
+    ) as wd:
         wd.deploy(None)
 
         # handle config
-        st.session_state["dir_path"] = tmpdir_path
+        st.session_state["workflow_config-dir_path"] = tmpdir_path
         conf_path = tmpdir_path / "config" / "config.yaml"
         config_viewer = st.radio(
             "Configuration editor mode",
@@ -48,11 +61,6 @@ def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
                 config = st_ace(conf_path.read_text(), language="yaml")
             with open(conf_path, "w") as f:
                 f.write(config)
-        # TODO get schemas for other items as they occur in the config file 
-        # (e.g. samples.tsv, units.tsv).
-        # Assumption is that the schemas are named the same by convention 
-        # (therefore e.g. calling wd.get_json_schema("samples")).
-        # This retrieval is needed when the editor for the tables is built.
 
 
     # handle sample sheets (TODO)

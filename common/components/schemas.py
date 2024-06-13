@@ -95,10 +95,10 @@ def infer_type(value):
     match value:
         case value if isinstance(value, pd.Series):
             id = get_nonan_index(value)
-            value_schema = {"type": "array", "items": infer_type(value[id]) if id else "missing"}
+            value_schema = {"type": "array", "items": infer_type(value[id]) if id else {"type": "missing"}}
         case list(value):
             id = get_nonan_index(value)
-            value_schema = {"type": "array", "items": infer_type(value[id]) if id else "missing"}
+            value_schema = {"type": "array", "items": infer_type(value[id]) if id else {"type": "missing"}}
         case bool(value):
             value_schema = {"type": "boolean"}
         case int(value):
@@ -144,7 +144,7 @@ def update_schema(schema: dict, config: dict):
     if items:
         for key, value in items:
             if prop_key == "patternProperties":
-                # assert re.search(list(schema.get(prop_key).keys())[0], key) # TODO: Proper Matching
+                # assert re.search(list(schema.get(prop_key).keys())[0], key) # TODO Proper Matching
                 key = list(schema[prop_key].keys())[0]
             new_schema = schema[prop_key].get(key)
             if new_schema == None:

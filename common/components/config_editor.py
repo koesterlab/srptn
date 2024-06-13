@@ -51,7 +51,7 @@ def create_form(config: dict, schema: dict, wd, parent_key: str = ""):
         for tab, (key, value) in enumerate(items):
             updated_key = update_key(parent_key, key)
             if prop_key == "patternProperties":
-                # assert re.search(list(schema.get(prop_key).keys())[0], key) # TODO: Proper Matching
+                # assert re.search(list(schema.get(prop_key).keys())[0], key) # TODO Proper Matching
                 key = list(schema[prop_key].keys())[0]
             with tabs[tab]:
                 new_schema = schema[prop_key].get(key)
@@ -86,7 +86,7 @@ def get_input_element(
     any
         The value of the input element after user input.
     """
-    # TODO: Edit button to adapt input fields?
+    # TODO Edit button to adapt input fields?
     input_value = None
     match input_type.get("type"):
         # implement accessing "format" for strings
@@ -111,9 +111,10 @@ def get_input_element(
                 input_value = st.text_input(label=label, value=value, key=key)
             else:
                 input_value, show_data = data_selector(label, value, key, wd)
-                if show_data & isinstance(st.session_state["data" + key], DataFrame):
-                    st.session_state["data" + key] = data_editor(
-                        st.session_state["data" + key]
+                data_key = "workflow_config-" + key + "-data"
+                if show_data & isinstance(st.session_state[data_key], DataFrame):
+                    st.session_state[data_key] = data_editor(
+                        st.session_state[data_key]
                     )
         case input if input == "integer":
             input_value = st.number_input(label=label, value=value, key=key)
@@ -145,14 +146,12 @@ def get_input_element(
                 key=key,
             )
         case input:
-            # TODO more verbose
-            print("No fitting input was found for your data!")
+            st.error("No fitting input was found for your data!")
     if required:
-        # TODO Also implement checks for formatting!
         valid = validate_input(st.session_state[key], input)
-        st.session_state["valid_config_form"][key] = valid
+        st.session_state["workflow_config-form-valid"][key] = valid
         if not valid:
-            report_invalid_input(key, input)
+            report_invalid_input(st.session_state[key], key, input)
     return input_value
 
 
@@ -187,7 +186,7 @@ def load_yaml(config: str):
         st.stop()
 
 
-def report_invalid_input(key: str, input_type: str):
+def report_invalid_input(value, key: str, input_type: str):
     """
     Report an invalid input in the Streamlit app.
 
@@ -198,9 +197,12 @@ def report_invalid_input(key: str, input_type: str):
     input_type : str
         The type of the invalid input.
     """
+    msg = " => ".join(key.split("."))
     match input_type:
-        case input_type if input_type == "string":
-            st.error(f"{key} needs adjustment")
+        case input_type if input_type == "string" and value == "":
+            st.error(f"{msg} must not be empty")
+        case input_type:
+            st.error(f"{msg} is filled incorrectly")
 
 
 def update_key(parent_key: str, new_key: str):
@@ -238,11 +240,24 @@ def validate_input(value, input_type: str):
     bool
         True if the value is valid, False otherwise.
     """
+    # TODO Also implement checks for formatting!
     valid = True
-    # TODO: More elaborate depending on input type
-    if value == None or value == "":
+    if input_type == "boolean":
+        return valid
+    elif not value:
         valid = False
     return valid
+
+
+st.cache_data()
+def load_config_and_schema(conf_path, wd):
+    config_schema = wd.get_json_schema("config")
+    config = load_yaml(conf_path.read_text())
+    if config_schema:
+        final_schema = update_schema(config_schema, config)
+    else:
+        final_schema = infer_schema(config)
+    return config, final_schema
 
 
 def config_editor(conf_path, wd):
@@ -261,13 +276,8 @@ def config_editor(conf_path, wd):
     str
         The updated configuration as a YAML string.
     """
-    config_schema = wd.get_json_schema("config")
-    config = load_yaml(conf_path.read_text())
-    if config_schema:
-        final_schema = update_schema(config_schema, config)
-    else:
-        final_schema = infer_schema(config)
-    st.session_state["valid_config_form"] = {}
+    config, final_schema = load_config_and_schema(conf_path, wd)
+    st.session_state["workflow_config-form-valid"] = {}
     config = create_form(config, final_schema, wd)
 
     config = yaml.dump(config, sort_keys=False)

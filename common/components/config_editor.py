@@ -10,7 +10,7 @@ from common.components.data_editor import data_editor, data_selector
 
 def create_form(config: dict, schema: dict, wd, parent_key: str = ""):
     """
-    Create a Streamlit form based on a config dictionary and schema.
+    Create a pseudo Streamlit form based on a config dictionary and schema.
 
     Parameters
     ----------
@@ -30,7 +30,7 @@ def create_form(config: dict, schema: dict, wd, parent_key: str = ""):
     """
     prop_key = get_property_type(schema)
     required_fields = schema.get("required")
-    items = []
+    new_tabs = []
     for key, value in config.items():
         if not isinstance(value, dict):  # check for leaf nodes = endpoints
             unique_element_key = update_key(parent_key, key)
@@ -44,14 +44,14 @@ def create_form(config: dict, schema: dict, wd, parent_key: str = ""):
                 wd,
             )
         else:
-            items.append((key, value))
+            new_tabs.append((key, value))
 
-    if items:
-        tabs = st.tabs([key for key, _ in items])
-        for tab, (key, value) in enumerate(items):
+    if new_tabs:
+        tabs = st.tabs([key for key, _ in new_tabs])
+        for tab, (key, value) in enumerate(new_tabs):
             updated_key = update_key(parent_key, key)
             if prop_key == "patternProperties":
-                # assert re.search(list(schema.get(prop_key).keys())[0], key) # TODO Proper Matching
+                # assert re.search(list(schema.get(prop_key).keys())[0], key) # TODO Proper Matching and flag for renaming if false?
                 key = list(schema[prop_key].keys())[0]
             with tabs[tab]:
                 new_schema = schema[prop_key].get(key)
@@ -86,26 +86,20 @@ def get_input_element(
     any
         The value of the input element after user input.
     """
-    # TODO Edit button to adapt input fields?
     input_value = None
     match input_type.get("type"):
-        # implement accessing "format" for strings
         case input if isinstance(input, list) and isinstance(
             value, list
-        ) and "array" in input:
+        ) or "array" in input:
+            # Cannot differentiate type here ~ no way to represent array of ints or floats
             input_value = st_tags(
                 label=label,
                 value=value,
                 key=key,
             )
         case input if isinstance(input, list) and not isinstance(value, list):
+            # input has multiple types and value is not a list => text_input can handle all remaining types
             input_value = st.text_input(label=label, value=value, key=key)
-        case input if input == "array":  # Cannot differentiate type here yet
-            input_value = st_tags(
-                label=label,
-                value=value,
-                key=key,
-            )
         case input if input == "string":
             if value == None or not value.endswith((".tsv", ".csv", ".xlsx")):
                 input_value = st.text_input(label=label, value=value, key=key)
@@ -113,12 +107,10 @@ def get_input_element(
                 input_value, show_data = data_selector(label, value, key, wd)
                 data_key = "workflow_config-" + key + "-data"
                 if show_data & isinstance(st.session_state[data_key], DataFrame):
-                    st.session_state[data_key] = data_editor(
-                        st.session_state[data_key]
-                    )
+                    st.session_state[data_key] = data_editor(st.session_state[data_key])
         case input if input == "integer":
             input_value = st.number_input(label=label, value=value, key=key)
-        case input if input == "number":
+        case input if input == "number": # TODO include fetching of number formating from config schema
             if "e" in str(value).lower():
                 input_value = st.text_input(label=label, value=value, key=key)
             else:
@@ -126,20 +118,13 @@ def get_input_element(
                     label=label,
                     value=value,
                     key=key,
-                    step=10
-                    ** -len(str(value).split(".")[-1]),  # infer significant decimals
+                    step=10 ** -len(str(value).split(".")[-1]), # infer significant decimals
                     format="%f",
                 )
         case input if input == "boolean":
             input_value = st.checkbox(label=label, value=value, key=key)
         case input if input == "missing":
             # empty endpoints default to list TODO: Better handling, let user choose?
-            input_value = st_tags(
-                label=label,
-                value=value,
-                key=key,
-            )
-        case value if type(value) == list:
             input_value = st_tags(
                 label=label,
                 value=value,
@@ -199,7 +184,7 @@ def report_invalid_input(value, key: str, input_type: str):
     """
     msg = " => ".join(key.split("."))
     match input_type:
-        case input_type if input_type == "string" and value == "":
+        case input_type if input_type == "string" and not value.strip():
             st.error(f"{msg} must not be empty")
         case input_type:
             st.error(f"{msg} is filled incorrectly")
@@ -249,8 +234,23 @@ def validate_input(value, input_type: str):
     return valid
 
 
-st.cache_data()
+st.cache_data
 def load_config_and_schema(conf_path, wd):
+    """
+    Load configuration and schema.
+
+    Parameters
+    ----------
+    conf_path : Path
+        The path to the configuration file.
+    wd : object
+        The workflow deployer object to get the JSON schema.
+
+    Returns
+    -------
+    tuple
+        The configuration and the final schema.
+    """
     config_schema = wd.get_json_schema("config")
     config = load_yaml(conf_path.read_text())
     if config_schema:

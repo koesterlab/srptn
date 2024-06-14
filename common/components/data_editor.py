@@ -28,7 +28,7 @@ def add_column(data: pd.DataFrame):
     with st.popover("Add column"):
         column = st.text_input("Add column", key="add_column_text")
         deleted = st.button("Add", key="add_column_button")
-        if deleted and column not in data.columns and column != "":
+        if deleted and column not in data.columns and column.strip():
             data[column] = ""
     return data
 
@@ -113,7 +113,7 @@ def rename_column(data: pd.DataFrame):
             "Rename column", value=selected, key="rename_column_text"
         )
         rename = st.button("Rename", key="rename_column_button")
-        if rename:
+        if rename and renamed.strip():
             data = data.rename(columns={selected: renamed})
     return data
 
@@ -148,16 +148,16 @@ def execute_custom_code(data, user_code: str, dataframe_type: str):
             and key.endswith("-data")
             and isinstance(value, pd.DataFrame)
         ):
-            if dataframe_type == "Polars": # TODO cleaner approach to this
+            if dataframe_type == "Polars":
                 if not isinstance(data, pl.DataFrame):
                     data = pl.from_pandas(data)
                 value = pl.from_pandas(value)
-                if value.to_dict(as_series=False) == data.to_dict(as_series=False):
+                if value.to_dict(as_series=False) != data.to_dict(as_series=False):
                     local_vars[key.split("-")[1]] = value
             if dataframe_type == "Pandas":
                 if value.to_string() != data.to_string():
                     local_vars[key.split("-")[1]] = value
-    exec(user_code, {}, local_vars)  # Sandboxing Polars?
+    exec(user_code, {}, local_vars)
     data = local_vars.get("df", data)
     if dataframe_type == "Polars":
         if not isinstance(data, pd.DataFrame):
@@ -189,7 +189,7 @@ def process_user_code(data: pd.DataFrame):
             "Dataframe type", options=["Pandas", "Polars"], horizontal=True
         )
 
-        acestring = "# Simply modify the df, e.g. df['lorem'] = 'ipsum'\n# Other tables are accessbile through their file name\n"
+        acestring = "# All other tables are accessbile through their file name\n"
         if dataframe_type == "Polars":
             acestring = "# The table is available as df: pl.DataFrame\n" + acestring
         else:
@@ -202,7 +202,7 @@ def process_user_code(data: pd.DataFrame):
         no_import = True
         if "import " in user_code:
             for line in user_code:
-                if not line.strip().startswith("import "):
+                if not line.strip().startswith("import"):
                     no_import = False
                     st.error("Remove line with 'import' as no imports are allowed.")
                     break
@@ -211,12 +211,12 @@ def process_user_code(data: pd.DataFrame):
         with col1:
             preview = st.button(
                 "Preview",
-                key="advance_manipulation_preview_config",
+                key="advanced_manipulation_preview_config",
                 disabled=not no_import,
             )
         with col2:
             apply = st.button(
-                "Apply", key="advance_manipulation_apply_config", disabled=not no_import
+                "Apply", key="advanced_manipulation_apply_config", disabled=not no_import
             )
         if preview:
             preview_data = data.copy()
@@ -226,7 +226,7 @@ def process_user_code(data: pd.DataFrame):
                 use_container_width=True,
                 disabled=True,
                 num_rows="fixed",
-                key="advance_manipulation_preview_window",
+                key="advanced_manipulation_preview_window",
             )
     if apply:
         data = execute_custom_code(data, user_code, dataframe_type)
@@ -252,7 +252,7 @@ def data_editor(data: pd.DataFrame):
     This function provides a Streamlit interface for adding, deleting, renaming columns,
     applying custom configurations, and executing user-provided Python code to modify the dataframe.
     """
-    col1, col2, col3, col4, col5 = st.columns([0.20, 0.22, 0.24, 0.22, 0.11])
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         data = add_column(data)
     with col2:
@@ -261,17 +261,31 @@ def data_editor(data: pd.DataFrame):
         data = rename_column(data)
     with col4:
         data = custom_upload(data)
-    # with col5:
-    #    store = st.button("Store", key="store_data_config")
-    # if store:
-    # TODO implement once its possible
-    #    pass
     data = process_user_code(data)
     input = st.data_editor(data, use_container_width=True, num_rows="dynamic")
     return input
 
 
 def data_selector(label: str, value: str, key: str, wd):
+    """
+    Create a data selector widget in Streamlit.
+
+    Parameters
+    ----------
+    label : str
+        The label for the text input widget.
+    value : str
+        The initial value of the text input.
+    key : str
+        The key to store the text input value in Streamlit's session state.
+    wd : object
+        The workflow deployer object to get the JSON schema.
+
+    Returns
+    -------
+    tuple
+        The input value and a boolean indicating whether to show the data editor.
+    """
     col1, col2 = st.columns([9, 1])
     with col1:
         input_value = st.text_input(label=label, value=value, key=key)
@@ -281,7 +295,6 @@ def data_selector(label: str, value: str, key: str, wd):
     if not isinstance(st.session_state[data_key], pd.DataFrame):
         st.error(f'{value.split("/")[-1]} not found!')
         return input_value, False
-    # restructure to create output from schema if present
 
     data_schema = wd.get_json_schema(value.split("/")[-1].split(".")[0])
     if data_schema:
@@ -296,9 +309,7 @@ def data_selector(label: str, value: str, key: str, wd):
     return input_value, show_data
 
 
-st.cache_data()
-
-
+st.cache_data
 def get_data_table(file_name: str):
     """
     Load a data table from a file based on its extension.
@@ -366,6 +377,16 @@ def upload_data_table(uploaded_file):
 
 
 def validate_data(data, schema):
+    """
+    Validate data against a schema.
+
+    Parameters
+    ----------
+    data : DataFrame
+        The data to be validated.
+    schema : dict
+        The schema to validate against.
+    """
     for field in schema.get("properties"):
         if field in schema.get("required"):
             for value in data[field]:

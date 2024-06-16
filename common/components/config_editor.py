@@ -88,9 +88,9 @@ def get_input_element(
     """
     input_value = None
     match input_type.get("type"):
-        case input if isinstance(input, list) and isinstance(
-            value, list
-        ) or "array" in input:
+        case input if input == "array" or "array" in input or (isinstance(input, list) and isinstance(value, list)):
+            if not isinstance(value, list):
+                value = [value]
             # Cannot differentiate type here ~ no way to represent array of ints or floats
             input_value = st_tags(
                 label=label,
@@ -105,9 +105,9 @@ def get_input_element(
                 input_value = st.text_input(label=label, value=value, key=key)
             else:
                 input_value, show_data = data_selector(label, value, key, wd)
-                data_key = "workflow_config-" + key + "-data"
+                data_key = key + "-data"
                 if show_data & isinstance(st.session_state[data_key], DataFrame):
-                    st.session_state[data_key] = data_editor(st.session_state[data_key])
+                    data_editor(st.session_state[data_key], key)
         case input if input == "integer":
             input_value = st.number_input(label=label, value=value, key=key)
         case input if input == "number": # TODO include fetching of number formating from config schema
@@ -134,7 +134,9 @@ def get_input_element(
             st.error("No fitting input was found for your data!")
     if required:
         valid = validate_input(st.session_state[key], input)
-        st.session_state["workflow_config-form-valid"][key] = valid
+        # data inputs are validated in the data_editor and must not be overwritten
+        if key not in st.session_state["workflow_config-form-valid"]: 
+            st.session_state["workflow_config-form-valid"][key] = valid
         if not valid:
             report_invalid_input(st.session_state[key], key, input)
     return input_value
@@ -182,7 +184,7 @@ def report_invalid_input(value, key: str, input_type: str):
     input_type : str
         The type of the invalid input.
     """
-    msg = " => ".join(key.split("."))
+    msg = " => ".join(key.split(".")[1:])
     match input_type:
         case input_type if input_type == "string" and not value.strip():
             st.error(f"{msg} must not be empty")
@@ -278,7 +280,6 @@ def config_editor(conf_path, wd):
     """
     config, final_schema = load_config_and_schema(conf_path, wd)
     st.session_state["workflow_config-form-valid"] = {}
-    config = create_form(config, final_schema, wd)
-
+    config = create_form(config, final_schema, wd, "workflow_config-")
     config = yaml.dump(config, sort_keys=False)
     return config

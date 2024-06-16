@@ -7,7 +7,7 @@ from common.components.schemas import infer_schema, update_schema
 from common.components.ui_components import toggle_button
 
 
-def add_column(data: pd.DataFrame):
+def add_column(data: pd.DataFrame, key: str) -> pd.DataFrame:
     """
     Add a new column to the dataframe.
 
@@ -15,6 +15,8 @@ def add_column(data: pd.DataFrame):
     ----------
     data : pandas.DataFrame
         The dataframe to which the column will be added.
+    key : str
+        The key for the Streamlit session state.
 
     Returns
     -------
@@ -26,14 +28,14 @@ def add_column(data: pd.DataFrame):
     This function uses a Streamlit popover to input the column name and add it to the dataframe.
     """
     with st.popover("Add column"):
-        column = st.text_input("Add column", key="add_column_text")
-        deleted = st.button("Add", key="add_column_button")
+        column = st.text_input("Add column", key=f"{key}-add_column_text")
+        deleted = st.button("Add", key=f"{key}-add_column_button")
         if deleted and column not in data.columns and column.strip():
             data[column] = ""
     return data
 
 
-def custom_upload(data: pd.DataFrame):
+def custom_upload(data: pd.DataFrame, key: str) -> pd.DataFrame:
     """
     Upload a custom configuration file and replace the dataframe.
 
@@ -41,6 +43,8 @@ def custom_upload(data: pd.DataFrame):
     ----------
     data : pandas.DataFrame
         The dataframe to be replaced with the uploaded file.
+    key : str
+        The key for the Streamlit session state.
 
     Returns
     -------
@@ -53,13 +57,13 @@ def custom_upload(data: pd.DataFrame):
     """
     with st.popover("Upload"):
         uploaded_file = st.file_uploader("Choose a file", type=("xlsx", "tsv", "csv"))
-        replace = st.button("Confirm", key="custom_upload_button")
+        replace = st.button("Confirm", key=f"{key}-custom_upload_button")
         if replace and uploaded_file:
             data = upload_data_table(uploaded_file)
     return data
 
 
-def delete_column(data: pd.DataFrame):
+def delete_column(data: pd.DataFrame, key: str) -> pd.DataFrame:
     """
     Delete a column from the dataframe.
 
@@ -67,6 +71,8 @@ def delete_column(data: pd.DataFrame):
     ----------
     data : pandas.DataFrame
         The dataframe from which the column will be deleted.
+    key : str
+        The key for the Streamlit session state.
 
     Returns
     -------
@@ -79,15 +85,15 @@ def delete_column(data: pd.DataFrame):
     """
     with st.popover("Delete column"):
         selected = st.selectbox(
-            "Select column to delete", options=data.columns, key="delete_column_select"
+            "Select column to delete", options=data.columns, key=f"{key}-delete_column_select"
         )
-        deleted = st.button("Delete", key="delete_column_button")
+        deleted = st.button("Delete", key=f"{key}-delete_column_button")
         if deleted:
             data = data.drop(columns=selected)
     return data
 
 
-def rename_column(data: pd.DataFrame):
+def rename_column(data: pd.DataFrame, key: str) -> pd.DataFrame:
     """
     Rename a column in the dataframe.
 
@@ -95,6 +101,8 @@ def rename_column(data: pd.DataFrame):
     ----------
     data : pandas.DataFrame
         The dataframe containing the column to be renamed.
+    key : str
+        The key for the Streamlit session state.
 
     Returns
     -------
@@ -107,10 +115,10 @@ def rename_column(data: pd.DataFrame):
     """
     with st.popover("Rename column"):
         selected = st.selectbox(
-            "Select column to delete", options=data.columns, key="rename_column_select"
+            "Select column to delete", options=data.columns, key=f"{key}-rename_column_select"
         )
         renamed = st.text_input(
-            "Rename column", value=selected, key="rename_column_text"
+            "Rename column", value=selected, key=f"{key}-rename_column_text"
         )
         rename = st.button("Rename", key="rename_column_button")
         if rename and renamed.strip():
@@ -118,7 +126,7 @@ def rename_column(data: pd.DataFrame):
     return data
 
 
-def execute_custom_code(data, user_code: str, dataframe_type: str):
+def execute_custom_code(data, user_code: str, dataframe_type: str) -> pd.DataFrame:
     """
     Execute custom code provided by the user on the dataframe.
 
@@ -165,7 +173,7 @@ def execute_custom_code(data, user_code: str, dataframe_type: str):
     return data
 
 
-def process_user_code(data: pd.DataFrame):
+def process_user_code(data: pd.DataFrame, key: str) -> pd.DataFrame:
     """
     Modify the dataframe using user-provided Python code.
 
@@ -173,6 +181,8 @@ def process_user_code(data: pd.DataFrame):
     ----------
     data : pandas.DataFrame
         The dataframe to be modified by the user's custom code.
+    key : str
+        The key for the Streamlit session state.
 
     Returns
     -------
@@ -211,12 +221,14 @@ def process_user_code(data: pd.DataFrame):
         with col1:
             preview = st.button(
                 "Preview",
-                key="advanced_manipulation_preview_config",
+                key=f"{key}-advanced_manipulation_preview_config",
                 disabled=not no_import,
             )
         with col2:
             apply = st.button(
-                "Apply", key="advanced_manipulation_apply_config", disabled=not no_import
+                "Apply",
+                key=f"{key}-advanced_manipulation_apply_config",
+                disabled=not no_import,
             )
         if preview:
             preview_data = data.copy()
@@ -226,14 +238,15 @@ def process_user_code(data: pd.DataFrame):
                 use_container_width=True,
                 disabled=True,
                 num_rows="fixed",
-                key="advanced_manipulation_preview_window",
+                key=f"{key}-advanced_manipulation_preview_window",
             )
+            validate_data(key, preview_data)
     if apply:
         data = execute_custom_code(data, user_code, dataframe_type)
     return data
 
 
-def data_editor(data: pd.DataFrame):
+def data_editor(data: pd.DataFrame, key: str):
     """
     Provide an interface for editing a dataframe with various options.
 
@@ -241,6 +254,8 @@ def data_editor(data: pd.DataFrame):
     ----------
     data : pandas.DataFrame
         The dataframe to be edited.
+    key : str
+        The key for the Streamlit session state.
 
     Returns
     -------
@@ -254,15 +269,24 @@ def data_editor(data: pd.DataFrame):
     """
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        data = add_column(data)
+        data = add_column(data, key)
     with col2:
-        data = delete_column(data)
+        data = delete_column(data, key)
     with col3:
-        data = rename_column(data)
+        data = rename_column(data, key)
     with col4:
-        data = custom_upload(data)
-    data = process_user_code(data)
-    input = st.data_editor(data, use_container_width=True, num_rows="dynamic")
+        data = custom_upload(data, key)
+    data = process_user_code(data, key)
+    input = st.data_editor(
+        data,
+        use_container_width=True,
+        num_rows="dynamic",
+        on_change=update_data,
+        args=(key,),
+        key=key + "-editor",
+    )
+    st.session_state[key + "-data"] = data
+    validate_data(key, data)
     return input
 
 
@@ -286,31 +310,31 @@ def data_selector(label: str, value: str, key: str, wd):
     tuple
         The input value and a boolean indicating whether to show the data editor.
     """
+    st.text(label)
     col1, col2 = st.columns([9, 1])
     with col1:
-        input_value = st.text_input(label=label, value=value, key=key)
-    data_key = "workflow_config-" + key + "-data"
+        input_value = st.text_input(label=label, value=value, key=key, label_visibility="collapsed")
+    data_key = key + "-data"
     if data_key not in st.session_state:
         st.session_state[data_key] = get_data_table(input_value)
     if not isinstance(st.session_state[data_key], pd.DataFrame):
         st.error(f'{value.split("/")[-1]} not found!')
         return input_value, False
-
-    data_schema = wd.get_json_schema(value.split("/")[-1].split(".")[0])
-    if data_schema:
-        final_schema = update_schema(data_schema, st.session_state[data_key])
-    else:
-        final_schema = infer_schema(st.session_state[data_key])
-    # if final_schema:
-    #    validate_data(st.session_state[data_key], final_schema) #.to_dict(orient="list")
+    schema_key = key + "-schema"
+    if schema_key not in st.session_state:
+        data_schema = wd.get_json_schema(value.split("/")[-1].split(".")[0])
+        if data_schema:
+            final_schema = update_schema(data_schema, st.session_state[data_key])
+        else:
+            final_schema = infer_schema(st.session_state[data_key])
+        st.session_state[schema_key] = final_schema
 
     with col2:
-        show_data = toggle_button("Edit", "workflow_config-" + key)
+        show_data = toggle_button("Edit", key)
     return input_value, show_data
 
 
-st.cache_data
-def get_data_table(file_name: str):
+def get_data_table(file_name: str) -> pd.DataFrame:
     """
     Load a data table from a file based on its extension.
 
@@ -344,7 +368,7 @@ def get_data_table(file_name: str):
     return data
 
 
-def upload_data_table(uploaded_file):
+def upload_data_table(uploaded_file) -> pd.DataFrame:
     """
     Load a data table from an uploaded file based on its MIME type.
 
@@ -376,19 +400,70 @@ def upload_data_table(uploaded_file):
     return data
 
 
-def validate_data(data, schema):
+def update_data(key):
+    """
+    Update the data in the session state based on user edits.
+
+    Parameters
+    ----------
+    key : str
+        The key for the Streamlit session state of the data.
+    """
+    editor = st.session_state[key + "-editor"]["edited_rows"]
+    data = st.session_state[key + "-data"]
+    coldictkey = list(editor.keys())[0]
+    colname = list(editor[coldictkey].keys())[0]
+    data.loc[coldictkey, colname] = editor[coldictkey][colname]
+    st.session_state[key + "-data"] = data
+
+
+def validate_data(key, data=None):
     """
     Validate data against a schema.
 
     Parameters
     ----------
-    data : DataFrame
-        The data to be validated.
-    schema : dict
-        The schema to validate against.
+    key : str
+        The key for the Streamlit session state.
+    data : pd.DataFrame, optional
+        The data to be validated. If not provided, it will be fetched from the session state.
+
+    Notes
+    -----
+    This function checks if the data conforms to the required schema and highlights errors.
     """
+    st.session_state["workflow_config-form-valid"][key] = True
+    if not isinstance(data, pd.DataFrame):
+        data = st.session_state[key + "-data"]
+    data = data.to_dict(orient="list")
+    schema = st.session_state[key + "-schema"]
     for field in schema.get("properties"):
-        if field in schema.get("required"):
-            for value in data[field]:
-                if not value:
-                    st.error(f"{field} is filled incorrectly")
+        required = schema.get("required")
+        column = data.get(field)
+        if required and field in required and not column:
+            st.error(f'Column "{field}" is required but not found.')
+        if column:
+            rows = []
+            for idx, value in enumerate(column):
+                valid = True
+                match schema["properties"][field]["type"]:
+                    case typing if typing == "boolean":
+                        if not any(
+                            value == bools for bools in ("True", "False", "0", "1")
+                        ):
+                            valid = False
+                    case typing if typing == "string":
+                        # No isinstance as the value might be an int or float as string
+                        if not str(value).strip() or not value:
+                            valid = False
+                    case typing if typing == "number":
+                        if not isinstance(value, (int, float)):
+                            valid = False
+                if not valid:
+                    rows.append(str(idx + 1))
+            if rows:
+                st.session_state["workflow_config-form-valid"][key] = False
+                rowstring = "s " + ", ".join(rows) if len(rows) > 1 else " " + rows[0]
+                st.error(
+                    f'Column "{field}" expects a "{schema["properties"][field]["type"]}" on row{rowstring}.'
+                )

@@ -37,6 +37,17 @@ if workflow is not None:
                 valid = (
                     not False in st.session_state["workflow_config-form-valid"].values()
                 )
+                invalid_fields = [
+                    key
+                    for key, value in st.session_state.get(
+                        "workflow_config-form-valid"
+                    ).items()
+                    if value == False
+                ]
+                invalid_fields_str = ", ".join(invalid_fields)
+                st.error(
+                    f'The following field{"s are" if len(invalid_fields) > 1 else " is"} incorrect: {invalid_fields_str}'
+                )
             else:
                 valid = True
             if valid:
@@ -47,6 +58,3 @@ if workflow is not None:
                     workflow=workflow,
                 ).store(data_store, Path(tmp_deployment))
                 st.success(f"Stored analysis {address}")
-            else:
-                st.error("One or more of the required inputs are not present")
-                # TODO More elaborate reporting, f.e. input_names

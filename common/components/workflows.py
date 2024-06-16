@@ -35,6 +35,11 @@ def workflow_selector():
         "workflow-branch",
     )
 
+    # Upon change of any of the inputs above -> clear session_state
+    for key in st.session_state.keys():
+        if key.startswith("workflow_config-"):
+            del st.session_state[key]
+
     if url and (tag or branch):
         return Workflow(url=url, tag=tag, branch=branch)
     else:

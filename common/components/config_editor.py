@@ -165,13 +165,13 @@ def load_yaml(config: str):
     """
     try:
         config = yaml.load(config, Loader=yaml.SafeLoader)
-        assert config != None
+        assert config is not None
         return config
     except yaml.YAMLError as e:
         st.error(f"Error parsing config YAML: {e}")
         st.stop()
     except AssertionError:
-        st.error(f"Configuration File is empty")
+        st.error("Configuration File is empty")
         st.stop()
 
 
@@ -229,8 +229,6 @@ def validate_input(value, input_type: str):
     bool
         True if the value is valid, False otherwise.
     """
-    if not value:
-        return False
     match input_type:
         case typing if typing == "boolean":
             return True

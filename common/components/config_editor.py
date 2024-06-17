@@ -51,7 +51,9 @@ def create_form(config: dict, schema: dict, wd, parent_key: str = ""):
         for tab, (key, value) in enumerate(new_tabs):
             updated_key = update_key(parent_key, key)
             if prop_key == "patternProperties":
-                # assert re.search(list(schema.get(prop_key).keys())[0], key) # TODO Proper Matching and flag for renaming if false?
+                if not re.search(list(schema.get(prop_key).keys())[0], key):
+                    print("Match unsuccessful")
+                    st.error("Field name does not match schema.")
                 key = list(schema[prop_key].keys())[0]
             with tabs[tab]:
                 new_schema = schema[prop_key].get(key)
@@ -110,7 +112,7 @@ def get_input_element(
                     data_editor(st.session_state[data_key], key)
         case input if input == "integer":
             input_value = st.number_input(label=label, value=value, key=key)
-        case input if input == "number": # TODO include fetching of number formating from config schema
+        case input if input == "number":
             if "e" in str(value).lower():
                 input_value = st.text_input(label=label, value=value, key=key)
             else:
@@ -124,7 +126,7 @@ def get_input_element(
         case input if input == "boolean":
             input_value = st.checkbox(label=label, value=value, key=key)
         case input if input == "missing":
-            # empty endpoints default to list TODO: Better handling, let user choose?
+            # empty endpoints default to list
             input_value = st_tags(
                 label=label,
                 value=value,
@@ -227,13 +229,19 @@ def validate_input(value, input_type: str):
     bool
         True if the value is valid, False otherwise.
     """
-    # TODO Also implement checks for formatting!
-    valid = True
-    if input_type == "boolean":
-        return valid
-    elif not value:
-        valid = False
-    return valid
+    if not value:
+        return False
+    match input_type:
+        case typing if typing == "boolean":
+            return True
+        case typing if typing == "string":
+            # No isinstance as the value might be an int or float as string
+            if not str(value).strip() or not value:
+                return False
+        case typing if typing == "number":
+            if not isinstance(value, (int, float)):
+                return False
+    return True
 
 
 st.cache_data

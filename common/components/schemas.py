@@ -1,4 +1,6 @@
 import pandas as pd
+import re
+import streamlit as st
 
 
 def get_nonan_index(value: list):
@@ -144,7 +146,8 @@ def update_schema(schema: dict, config: dict):
     if items:
         for key, value in items:
             if prop_key == "patternProperties":
-                # assert re.search(list(schema.get(prop_key).keys())[0], key) # TODO Proper Matching
+                if not re.search(list(schema.get(prop_key).keys())[0], key):
+                    st.error("Field name does not match schema.")
                 key = list(schema[prop_key].keys())[0]
             new_schema = schema[prop_key].get(key)
             if new_schema == None:

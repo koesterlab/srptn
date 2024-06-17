@@ -194,7 +194,7 @@ def process_user_code(data: pd.DataFrame, key: str) -> pd.DataFrame:
     This function allows users to input and execute custom Python code to modify the dataframe.
     It provides a preview and an apply option for the modifications.
     """
-    with st.expander("Advanced table modification"):
+    with st.session_state[key+"-placeholders"][1].expander("Advanced table modification"):
         dataframe_type = st.radio(
             "Dataframe type", options=["Pandas", "Polars"], horizontal=True
         )
@@ -267,7 +267,7 @@ def data_editor(data: pd.DataFrame, key: str):
     This function provides a Streamlit interface for adding, deleting, renaming columns,
     applying custom configurations, and executing user-provided Python code to modify the dataframe.
     """
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.session_state[key+"-placeholders"][0].columns(4)
     with col1:
         data = add_column(data, key)
     with col2:

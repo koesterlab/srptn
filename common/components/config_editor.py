@@ -108,8 +108,12 @@ def get_input_element(
             else:
                 input_value, show_data = data_selector(label, value, key, wd)
                 data_key = key + "-data"
+                # Workaround for popver and expander bug
+                st.session_state[key+"-placeholders"] = [st.empty() for _ in range(2)]
                 if show_data & isinstance(st.session_state[data_key], DataFrame):
                     data_editor(st.session_state[data_key], key)
+                else:
+                    [placeholder.empty() for placeholder in st.session_state[key+"-placeholders"]]
         case input if input == "integer":
             input_value = st.number_input(label=label, value=value, key=key)
         case input if input == "number":

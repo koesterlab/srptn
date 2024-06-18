@@ -9,8 +9,6 @@ from common.components.config_editor import config_editor
 from common.components.ui_components import persistend_text_input
 from common.data.entities.workflow import Workflow
 
-st.cache_data
-
 
 def workflow_selector():
     """
@@ -36,7 +34,7 @@ def workflow_selector():
         "workflow-branch",
     )
 
-    # Upon change of any of the inputs above -> clear session_state
+    # Upon change of any of the inputs above -> clear session_state of the config
     for key in st.session_state.keys():
         if key.startswith("workflow_config-"):
             del st.session_state[key]

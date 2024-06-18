@@ -253,9 +253,6 @@ def validate_input(value, input_type: str):
     return True
 
 
-st.cache_data
-
-
 def load_config_and_schema(conf_path, wd):
     """
     Load configuration and schema.

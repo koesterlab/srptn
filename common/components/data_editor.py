@@ -1,7 +1,7 @@
-import streamlit as st
-from streamlit_ace import st_ace
 import pandas as pd
 import polars as pl
+import streamlit as st
+from streamlit_ace import st_ace
 
 from common.components.schemas import infer_schema, update_schema
 from common.components.ui_components import toggle_button
@@ -85,7 +85,9 @@ def delete_column(data: pd.DataFrame, key: str) -> pd.DataFrame:
     """
     with st.popover("Delete column"):
         selected = st.selectbox(
-            "Select column to delete", options=data.columns, key=f"{key}-delete_column_select"
+            "Select column to delete",
+            options=data.columns,
+            key=f"{key}-delete_column_select",
         )
         deleted = st.button("Delete", key=f"{key}-delete_column_button")
         if deleted:
@@ -115,7 +117,9 @@ def rename_column(data: pd.DataFrame, key: str) -> pd.DataFrame:
     """
     with st.popover("Rename column"):
         selected = st.selectbox(
-            "Select column to delete", options=data.columns, key=f"{key}-rename_column_select"
+            "Select column to delete",
+            options=data.columns,
+            key=f"{key}-rename_column_select",
         )
         renamed = st.text_input(
             "Rename column", value=selected, key=f"{key}-rename_column_text"
@@ -194,7 +198,9 @@ def process_user_code(data: pd.DataFrame, key: str) -> pd.DataFrame:
     This function allows users to input and execute custom Python code to modify the dataframe.
     It provides a preview and an apply option for the modifications.
     """
-    with st.session_state[key+"-placeholders"][1].expander("Advanced table modification"):
+    with st.session_state[key + "-placeholders"][1].expander(
+        "Advanced table modification"
+    ):
         dataframe_type = st.radio(
             "Dataframe type", options=["Pandas", "Polars"], horizontal=True
         )
@@ -267,7 +273,7 @@ def data_editor(data: pd.DataFrame, key: str):
     This function provides a Streamlit interface for adding, deleting, renaming columns,
     applying custom configurations, and executing user-provided Python code to modify the dataframe.
     """
-    col1, col2, col3, col4 = st.session_state[key+"-placeholders"][0].columns(4)
+    col1, col2, col3, col4 = st.session_state[key + "-placeholders"][0].columns(4)
     with col1:
         data = add_column(data, key)
     with col2:
@@ -313,7 +319,9 @@ def data_selector(label: str, value: str, key: str, wd):
     st.text(label)
     col1, col2 = st.columns([9, 1])
     with col1:
-        input_value = st.text_input(label=label, value=value, key=key, label_visibility="collapsed")
+        input_value = st.text_input(
+            label=label, value=value, key=key, label_visibility="collapsed"
+        )
     data_key = key + "-data"
     if data_key not in st.session_state:
         st.session_state[data_key] = get_data_table(input_value)

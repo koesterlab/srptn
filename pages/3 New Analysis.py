@@ -1,16 +1,16 @@
 from pathlib import Path
-from common.components.descriptions import desc_editor
-from common.components.categories import category_editor
-from common.components.entities import entity_selector
-from common.components.workflows import workflow_editor, workflow_selector
 
-from common.data import Address
-from common.data.entities.analysis import Analysis
-from common.data.fs import FSDataStore
-from common.data.entities.dataset import Dataset
 import streamlit as st
 
+from common.components.categories import category_editor
+from common.components.descriptions import desc_editor
+from common.components.entities import entity_selector
 from common.components.ui_components import persistend_text_input
+from common.components.workflows import workflow_editor, workflow_selector
+from common.data import Address
+from common.data.entities.analysis import Analysis
+from common.data.entities.dataset import Dataset
+from common.data.fs import FSDataStore
 
 owner = "koesterlab"
 data_store = FSDataStore()
@@ -35,14 +35,14 @@ if workflow is not None:
         if store:
             if st.session_state.get("workflow_config-form-valid"):
                 valid = (
-                    not False in st.session_state["workflow_config-form-valid"].values()
+                    False not in st.session_state["workflow_config-form-valid"].values()
                 )
                 invalid_fields = [
                     key
                     for key, value in st.session_state.get(
                         "workflow_config-form-valid"
                     ).items()
-                    if value == False
+                    if value is False
                 ]
                 invalid_fields_str = ", ".join(invalid_fields)
                 st.error(

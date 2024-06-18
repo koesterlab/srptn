@@ -1,11 +1,12 @@
-import streamlit as st
-from pandas import DataFrame
-from streamlit_tags import st_tags
-import yaml
 import re
 
-from common.components.schemas import get_property_type, infer_schema, update_schema
+import streamlit as st
+import yaml
+from pandas import DataFrame
+from streamlit_tags import st_tags
+
 from common.components.data_editor import data_editor, data_selector
+from common.components.schemas import get_property_type, infer_schema, update_schema
 
 
 def create_form(config: dict, schema: dict, wd, parent_key: str = ""):
@@ -90,7 +91,9 @@ def get_input_element(
     """
     input_value = None
     match input_type.get("type"):
-        case input if input == "array" or "array" in input or (isinstance(input, list) and isinstance(value, list)):
+        case input if input == "array" or "array" in input or (
+            isinstance(input, list) and isinstance(value, list)
+        ):
             if not isinstance(value, list):
                 value = [value]
             # Cannot differentiate type here ~ no way to represent array of ints or floats
@@ -103,17 +106,20 @@ def get_input_element(
             # input has multiple types and value is not a list => text_input can handle all remaining types
             input_value = st.text_input(label=label, value=value, key=key)
         case input if input == "string":
-            if value == None or not value.endswith((".tsv", ".csv", ".xlsx")):
+            if value is None or not value.endswith((".tsv", ".csv", ".xlsx")):
                 input_value = st.text_input(label=label, value=value, key=key)
             else:
                 input_value, show_data = data_selector(label, value, key, wd)
                 data_key = key + "-data"
                 # Workaround for popver and expander bug
-                st.session_state[key+"-placeholders"] = [st.empty() for _ in range(2)]
+                st.session_state[key + "-placeholders"] = [st.empty() for _ in range(2)]
                 if show_data & isinstance(st.session_state[data_key], DataFrame):
                     data_editor(st.session_state[data_key], key)
                 else:
-                    [placeholder.empty() for placeholder in st.session_state[key+"-placeholders"]]
+                    [
+                        placeholder.empty()
+                        for placeholder in st.session_state[key + "-placeholders"]
+                    ]
         case input if input == "integer":
             input_value = st.number_input(label=label, value=value, key=key)
         case input if input == "number":
@@ -124,7 +130,8 @@ def get_input_element(
                     label=label,
                     value=value,
                     key=key,
-                    step=10 ** -len(str(value).split(".")[-1]), # infer significant decimals
+                    step=10
+                    ** -len(str(value).split(".")[-1]),  # infer significant decimals
                     format="%f",
                 )
         case input if input == "boolean":
@@ -141,7 +148,7 @@ def get_input_element(
     if required:
         valid = validate_input(st.session_state[key], input)
         # data inputs are validated in the data_editor and must not be overwritten
-        if key not in st.session_state["workflow_config-form-valid"]: 
+        if key not in st.session_state["workflow_config-form-valid"]:
             st.session_state["workflow_config-form-valid"][key] = valid
         if not valid:
             report_invalid_input(st.session_state[key], key, input)
@@ -247,6 +254,8 @@ def validate_input(value, input_type: str):
 
 
 st.cache_data
+
+
 def load_config_and_schema(conf_path, wd):
     """
     Load configuration and schema.

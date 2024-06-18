@@ -1,16 +1,17 @@
-from pathlib import Path
 import tempfile
-from typing import Optional
-import streamlit as st
-from streamlit_ace import st_ace
-from snakedeploy.deploy import WorkflowDeployer
+from pathlib import Path
 
-from common.data.entities.workflow import Workflow
+import streamlit as st
+from snakedeploy.deploy import WorkflowDeployer
+from streamlit_ace import st_ace
+
 from common.components.config_editor import config_editor
 from common.components.ui_components import persistend_text_input
-
+from common.data.entities.workflow import Workflow
 
 st.cache_data
+
+
 def workflow_selector():
     """
     Create workflow selector widget in Streamlit with persistent text inputs.

@@ -19,6 +19,14 @@ def workflow_selector():
     Workflow or None
         The selected workflow or None if the input is incomplete.
     """
+    changed = [""] * 3
+    if "workflow-branch" in st.session_state:
+        changed = [
+            st.session_state["workflow-url"],
+            st.session_state["workflow-tag"],
+            st.session_state["workflow-branch"],
+        ]
+
     url = persistend_text_input(
         "Workflow repository URL (e.g. https://github.com/snakemake-workflows/rna-seq-kallisto-sleuth)",
         "workflow-url",
@@ -35,9 +43,10 @@ def workflow_selector():
     )
 
     # Upon change of any of the inputs above -> clear session_state of the config
-    for key in st.session_state.keys():
-        if key.startswith("workflow_config-"):
-            del st.session_state[key]
+    if url != changed[0] or tag != changed[1] or branch != changed[2]:
+        for key in st.session_state.keys():
+            if key.startswith("workflow_config-"):
+                del st.session_state[key]
 
     if url and (tag or branch):
         return Workflow(url=url, tag=tag, branch=branch)

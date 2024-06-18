@@ -293,6 +293,8 @@ def validate_input(value: any, input_type: str) -> bool:
             if not str(value).strip() or not value:
                 return False
         case typing if typing == "number":
+            if "e" in str(value).lower():
+                return True
             if not isinstance(value, (int, float)):
                 return False
     return True

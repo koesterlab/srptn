@@ -10,7 +10,7 @@ from common.components.ui_components import persistend_text_input
 from common.data.entities.workflow import Workflow
 
 
-def workflow_selector():
+def workflow_selector() -> Workflow | None:
     """
     Create workflow selector widget in Streamlit with persistent text inputs.
 
@@ -19,13 +19,15 @@ def workflow_selector():
     Workflow or None
         The selected workflow or None if the input is incomplete.
     """
-    changed = [""] * 3
+
     if "workflow-branch" in st.session_state:
         changed = [
             st.session_state["workflow-url"],
             st.session_state["workflow-tag"],
             st.session_state["workflow-branch"],
         ]
+    else:
+        changed = [""] * 3
 
     url = persistend_text_input(
         "Workflow repository URL (e.g. https://github.com/snakemake-workflows/rna-seq-kallisto-sleuth)",
@@ -42,7 +44,7 @@ def workflow_selector():
         "workflow-branch",
     )
 
-    # Upon change of any of the inputs above -> clear session_state of the config
+    # upon change of any of the inputs above -> clear session_state of the config
     if url != changed[0] or tag != changed[1] or branch != changed[2]:
         for key in st.session_state.keys():
             if key.startswith("workflow_config-"):
@@ -85,12 +87,12 @@ def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
         )
         if not conf_path.exists():
             st.error("No config file found!")
+            st.stop()
+        st.divider()
+        if config_viewer == "Form":
+            config = config_editor(conf_path, wd)
         else:
-            st.divider()
-            if config_viewer == "Form":
-                config = config_editor(conf_path, wd)
-            else:
-                config = st_ace(conf_path.read_text(), language="yaml")
-            with open(conf_path, "w") as f:
-                f.write(config)
+            config = st_ace(conf_path.read_text(), language="yaml")
+        with open(conf_path, "w") as f:
+            f.write(config)
     return tmpdir

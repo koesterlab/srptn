@@ -1,7 +1,7 @@
 import streamlit as st
 
 
-def toggle_button(label: str, key: str):
+def toggle_button(label: str, key: str) -> bool:
     """
     Minimal wrapper around st.button that mimics a toggle.
 
@@ -26,7 +26,7 @@ def toggle_button(label: str, key: str):
     return st.session_state[state]
 
 
-def persistend_text_input(label: str, key: str):
+def persistend_text_input(label: str, key: str) -> str:
     """
     Minimal wrapper around st.text_input that stores its value in the session_state to persist through page changes.
 
@@ -53,7 +53,7 @@ def persistend_text_input(label: str, key: str):
     return value
 
 
-def persistend_text_area(label: str, key: str):
+def persistend_text_area(label: str, key: str) -> str:
     """
     Create a persistent text area widget in Streamlit.
 

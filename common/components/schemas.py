@@ -3,7 +3,7 @@ import re
 import streamlit as st
 
 
-def get_nonan_index(value: list):
+def get_nonan_index(value: list) -> int | None:
     """
     Find the index of the first non-NaN value in the list.
 
@@ -27,7 +27,7 @@ def get_nonan_index(value: list):
     return None
 
 
-def get_property_type(schema: dict):
+def get_property_type(schema: dict) -> str | None:
     """
     Determine the property type key in a schema dictionary.
 
@@ -49,7 +49,7 @@ def get_property_type(schema: dict):
     return None
 
 
-def infer_schema(config: dict):
+def infer_schema(config: dict) -> dict:
     """
     Infer a JSON schema from a configuration dictionary.
 
@@ -76,7 +76,7 @@ def infer_schema(config: dict):
     return schema
 
 
-def infer_type(value):
+def infer_type(value) -> dict:
     """
     Infer the JSON schema type for a given value.
 
@@ -97,10 +97,16 @@ def infer_type(value):
     match value:
         case value if isinstance(value, pd.Series):
             id = get_nonan_index(value)
-            value_schema = {"type": "array", "items": infer_type(value[id]) if id else {"type": "missing"}}
+            value_schema = {
+                "type": "array",
+                "items": infer_type(value[id]) if id else {"type": "missing"},
+            }
         case list(value):
             id = get_nonan_index(value)
-            value_schema = {"type": "array", "items": infer_type(value[id]) if id else {"type": "missing"}}
+            value_schema = {
+                "type": "array",
+                "items": infer_type(value[id]) if id else {"type": "missing"},
+            }
         case bool(value):
             value_schema = {"type": "boolean"}
         case int(value):
@@ -109,12 +115,12 @@ def infer_type(value):
             value_schema = {"type": "number"}
         case str(value):
             value_schema = {"type": "string"}
-        case value if value == None:
+        case value if value is None:
             value_schema = {"type": "missing"}
     return value_schema
 
 
-def update_schema(schema: dict, config: dict):
+def update_schema(schema: dict, config: dict) -> dict:
     """
     Update a JSON schema based on a config dictionary.
 
@@ -140,20 +146,16 @@ def update_schema(schema: dict, config: dict):
     for key, value in config.items():
         if isinstance(value, dict):  # check for leaf nodes = endpoints
             items.append((key, value))
-        elif key not in schema.get(prop_key).keys():
-            print(f'Category "{key}" found in config that has no entry in the schema!')
+        elif key not in schema[prop_key].keys():
             schema[prop_key][key] = infer_type(value)
     if items:
         for key, value in items:
             if prop_key == "patternProperties":
-                if not re.search(list(schema.get(prop_key).keys())[0], key):
+                if not re.search(list(schema[prop_key].keys())[0], key):
                     st.error("Field name does not match schema.")
                 key = list(schema[prop_key].keys())[0]
             new_schema = schema[prop_key].get(key)
-            if new_schema == None:
-                print(
-                    f'Category "{key}" found in config that has no entry in the schema!'
-                )
+            if new_schema is None:
                 schema[prop_key][key] = infer_schema(config[key])
                 new_schema = schema[prop_key][key]
             update_schema(new_schema, value)

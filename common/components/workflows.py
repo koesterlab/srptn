@@ -1,20 +1,54 @@
-from pathlib import Path
 import tempfile
-from typing import Optional
-import streamlit as st
-from streamlit_ace import st_ace
-from snakedeploy.deploy import WorkflowDeployer
-import yaml
+from pathlib import Path
 
+import streamlit as st
+from snakedeploy.deploy import WorkflowDeployer
+from streamlit_ace import st_ace
+
+from common.components.config_editor import config_editor
+from common.components.ui_components import persistend_text_input
 from common.data.entities.workflow import Workflow
 
 
-def workflow_selector():
-    url = st.text_input(
-        "Workflow repository URL (e.g. https://github.com/snakemake-workflows/rna-seq-kallisto-sleuth)"
+def workflow_selector() -> Workflow | None:
+    """
+    Create workflow selector widget in Streamlit with persistent text inputs.
+
+    Returns
+    -------
+    Workflow or None
+        The selected workflow or None if the input is incomplete.
+    """
+
+    if "workflow-branch" in st.session_state:
+        changed = [
+            st.session_state["workflow-url"],
+            st.session_state["workflow-tag"],
+            st.session_state["workflow-branch"],
+        ]
+    else:
+        changed = [""] * 3
+
+    url = persistend_text_input(
+        "Workflow repository URL (e.g. https://github.com/snakemake-workflows/rna-seq-kallisto-sleuth)",
+        "workflow-url",
     )
-    tag = st.text_input("Workflow repository tag (optional)")
-    branch = st.text_input("Workflow repository branch (optional)")
+
+    tag = persistend_text_input(
+        "Workflow repository tag (optional)",
+        "workflow-tag",
+    )
+
+    branch = persistend_text_input(
+        "Workflow repository branch (optional)",
+        "workflow-branch",
+    )
+
+    # upon change of any of the inputs above -> clear session_state of the config
+    if url != changed[0] or tag != changed[1] or branch != changed[2]:
+        for key in st.session_state.keys():
+            if key.startswith("workflow_config-"):
+                del st.session_state[key]
 
     if url and (tag or branch):
         return Workflow(url=url, tag=tag, branch=branch)
@@ -23,31 +57,42 @@ def workflow_selector():
 
 
 def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
+    """
+    Create and edit workflow configuration.
+
+    Parameters
+    ----------
+    workflow : Workflow
+        The workflow object containing URL, tag, and branch information.
+
+    Returns
+    -------
+    tempfile.TemporaryDirectory
+        The temporary directory where the workflow is deployed.
+    """
     tmpdir = tempfile.TemporaryDirectory()
     tmpdir_path = Path(tmpdir.name)
 
-    with WorkflowDeployer(workflow.url, tmpdir_path, tag=workflow.tag, branch=workflow.branch) as wd:
+    with WorkflowDeployer(
+        workflow.url, tmpdir_path, tag=workflow.tag, branch=workflow.branch
+    ) as wd:
         wd.deploy(None)
 
-        # handle config
+        st.session_state["workflow_config-dir_path"] = tmpdir_path
         conf_path = tmpdir_path / "config" / "config.yaml"
-        if conf_path.exists():
-            config_schema = wd.get_json_schema("config")
-
-            # TODO get schemas for other items as they occur in the config file 
-            # (e.g. samples.tsv, units.tsv).
-            # Assumption is that the schemas are named the same by convention 
-            # (therefore e.g. calling wd.get_json_schema("samples")).
-            # This retrieval is needed when the editor for the tables is built.
-
+        config_viewer = st.radio(
+            "Configuration editor mode",
+            ["Form", "Text Editor"],
+            horizontal=True,
+        )
+        if not conf_path.exists():
+            st.error("No config file found!")
+            st.stop()
+        st.divider()
+        if config_viewer == "Form":
+            config = config_editor(conf_path, wd)
+        else:
             config = st_ace(conf_path.read_text(), language="yaml")
-            try:
-                yaml.load(config, Loader=yaml.SafeLoader)
-            except yaml.YAMLError as e:
-                st.error(f"Error parsing config YAML: {e}")
-                st.stop()
-            with open(conf_path, "w") as f:
-                f.write(config)
-
-    # handle sample sheets (TODO)
+        with open(conf_path, "w") as f:
+            f.write(config)
     return tmpdir

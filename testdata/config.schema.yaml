@@ -1,0 +1,215 @@
+$schema: "http://json-schema.org/draft-04/schema#"
+
+description: snakemake configuration file
+
+type: object
+
+properties:
+  samples:
+    type: string
+  units:
+    type: string
+  experiment:
+    type: object
+    properties:
+      3-prime-rna-seq:
+        type: object
+        properties:
+          activate:
+            type: boolean
+          vendor:
+            type: string
+          plot-qc:
+            type: ["string", "array"]
+          required:
+            - plot-qc
+            - vendor
+            - activate
+      
+  resources:
+    type: object
+    properties:
+      ref:
+        type: object
+        properties:
+          species:
+            type: string
+          release:
+            type: string
+          build:
+            type: string
+          pfam:
+            type: string
+          representative_transcripts:
+            type: string
+        required:
+          - species
+          - release
+          - build
+          - pfam
+          - representative_transcripts
+      ontology:
+        type: object
+        properties:
+          gene_ontology:
+            type: string
+            format: uri
+        required:
+          - gene_ontology
+
+  pca:
+    type: object
+    properties:
+      labels:
+        type: array
+        items:
+          type: string
+    required:
+      - labels
+
+  diffexp:
+    type: object
+    properties:
+      models:
+        type: object
+        patternProperties:
+          "^.+$":
+            type: object
+            properties:
+              full:
+                type: string
+              reduced:
+                type: string
+              primary_variable:
+                type: string
+              base_level:
+                type: ["number", "string"]
+            required:
+              - full
+              - reduced
+              - primary_variable
+              - base_level
+      genes_of_interest:
+        type: object
+        properties:
+          activate: 
+            type: boolean
+          genelist:
+            type: string
+        required:
+          - genelist
+    required:
+      - models
+      - genes_of_interest
+
+  diffsplice:
+    type: object
+    properties:
+      coding_cutoff:
+        type: number
+      remove_noncoding_orfs:
+        type: boolean
+      fdr:
+        type: number
+      min_effect_size:
+        type: number
+    required:
+      - coding_cutoff
+      - remove_noncoding_orfs
+      - fdr
+      - min_effect_size
+
+  enrichment:
+    type: object
+    properties:
+      goatools:
+        type: object
+        properties:
+          activate:
+            type: boolean
+          fdr_genes:
+            type: number
+          fdr_go_terms:
+            type: number
+        required:
+          - fdr_genes
+          - fdr_go_terms
+      fgsea:
+        type: object
+        properties:
+          activate:
+            type: boolean
+          gene_sets_file:
+            type: string
+          fdr_gene_set:
+            type: number
+          eps:
+            type: number
+        required:
+          - gene_sets_file
+          - fdr_gene_set
+          - eps
+      spia:
+        type: object
+        properties:
+          activate:
+            type: boolean
+          pathway_database:
+            type: string
+        required:
+          - pathway_database
+
+  bootstrap_plots:
+    type: object
+    properties:
+      FDR:
+        type: number
+      top_n:
+        type: integer
+      color_by:
+        type: string
+    required:
+      - FDR
+      - top_n
+      - color_by
+
+  plot_vars:
+    type: object
+    properties:
+      sig_level:
+        type: number
+    required:
+      - sig_level
+
+  params:
+    type: object
+    properties:
+      kallisto:
+        type: string
+      cutadapt-se:
+        type: object
+        properties:
+          adapters:
+            type: string
+          extra:
+            type: string
+      cutadapt-pe:
+        type: object
+        properties:
+          adapters:
+            type: string
+          extra:
+            type: string
+    required:
+      - kallisto
+      - cutadapt-se
+      - cutadapt-pe
+
+required:
+  - samples
+  - units
+  - resources
+  - pca
+  - diffexp
+  - enrichment
+  - params

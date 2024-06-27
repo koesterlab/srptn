@@ -1,11 +1,15 @@
 channels:
   - conda-forge
+  - bioconda
   - nodefaults
 dependencies:
-  - python =3.11
-  - streamlit
+  - python=3.11
+  - streamlit=1.35.0
   - humanfriendly
   - pandas
+  - polars
+  - pytest=8.2.1
   - snakedeploy >=0.10,<1.0
   - pip:
       - streamlit-ace
+      - streamlit-tags # Editable multiselects

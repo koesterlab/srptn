@@ -88,7 +88,6 @@ def data_editor(data: pd.DataFrame, key: str):
         st.session_state[schema_key] = modify_schema(
             st.session_state[schema_key], schema_key
         )
-    st.write(st.session_state[schema_key])
     data = process_user_code(data, key)
     data = st.session_state[key + "-placeholders"][2].data_editor(
         data,

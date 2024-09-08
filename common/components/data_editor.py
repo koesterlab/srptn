@@ -23,10 +23,10 @@ def add_column(data: pd.DataFrame, key: str) -> pd.DataFrame:
     pandas.DataFrame
         The dataframe with the new column added.
     """
-    with st.popover("Add column"):
+    with st.popover("Add"):
         column = st.text_input("Add column", key=f"{key}-add_column_text")
-        deleted = st.button("Add", key=f"{key}-add_column_button")
-        if deleted and column.strip() and column not in data.columns:
+        added = st.button("Add", key=f"{key}-add_column_button")
+        if added and column.strip() and column not in data.columns:
             data[column] = ""
     return data
 
@@ -48,7 +48,11 @@ def custom_upload(data: pd.DataFrame, key: str) -> pd.DataFrame:
         The dataframe loaded from the uploaded file.
     """
     with st.popover("Upload"):
-        uploaded_file = st.file_uploader("Choose a file", type=("xlsx", "tsv", "csv"))
+        uploaded_file = st.file_uploader(
+            "Choose a file",
+            type=("xlsx", "tsv", "csv"),
+            key=f"{key}-custom_upload_field",
+        )
         replace = st.button("Confirm", key=f"{key}-custom_upload_button")
         if replace and uploaded_file:
             data = upload_data_table(uploaded_file)
@@ -70,15 +74,21 @@ def data_editor(data: pd.DataFrame, key: str):
     -----
     This function provides a Streamlit interface for adding, deleting, renaming columns, applying custom configurations, and executing user-provided Python code to modify the dataframe.
     """
-    col1, col2, col3, col4 = st.session_state[key + "-placeholders"][0].columns(4)
+    col1, col2, col3, col4, col5 = st.session_state[key + "-placeholders"][0].columns(5)
     with col1:
         data = add_column(data, key)
     with col2:
-        data = delete_column(data, key)
-    with col3:
         data = rename_column(data, key)
+    with col3:
+        data = delete_column(data, key)
     with col4:
         data = custom_upload(data, key)
+    with col5:
+        schema_key = key + "-schema"
+        st.session_state[schema_key] = modify_schema(
+            st.session_state[schema_key], schema_key
+        )
+    st.write(st.session_state[schema_key])
     data = process_user_code(data, key)
     data = st.session_state[key + "-placeholders"][2].data_editor(
         data,
@@ -154,7 +164,7 @@ def delete_column(data: pd.DataFrame, key: str) -> pd.DataFrame:
     pandas.DataFrame
         The dataframe with the specified column deleted.
     """
-    with st.popover("Delete column"):
+    with st.popover("Remove"):
         selected = st.selectbox(
             "Select column to delete",
             options=data.columns,
@@ -251,7 +261,7 @@ def get_data_table(file_name: str) -> pd.DataFrame:
     return data
 
 
-@st.experimental_fragment
+# @st.fragment
 def process_user_code(data: pd.DataFrame, key: str) -> pd.DataFrame:
     """
     Modify the dataframe using user-provided Python code.
@@ -277,7 +287,10 @@ def process_user_code(data: pd.DataFrame, key: str) -> pd.DataFrame:
         "Advanced table modification", expanded=True
     ):
         dataframe_type = st.radio(
-            "Dataframe type", options=["Pandas", "Polars"], horizontal=True
+            "Dataframe type",
+            options=["Pandas", "Polars"],
+            horizontal=True,
+            key=f"{key}-dataframetype",
         )
 
         if dataframe_type == "Polars":
@@ -346,19 +359,57 @@ def rename_column(data: pd.DataFrame, key: str) -> pd.DataFrame:
     pandas.DataFrame
         The dataframe with the renamed column.
     """
-    with st.popover("Rename column"):
+    with st.popover("Rename"):
         selected = st.selectbox(
-            "Select column to delete",
+            "Select column to rename",
             options=data.columns,
             key=f"{key}-rename_column_select",
         )
         renamed = st.text_input(
-            "Rename column", value=selected, key=f"{key}-rename_column_text"
+            "Rename to", value=selected, key=f"{key}-rename_column_text"
         )
-        rename = st.button("Rename", key="rename_column_button")
+        rename = st.button("Rename", key=f"{key}-rename_column_button")
         if rename and renamed.strip():
             data = data.rename(columns={selected: renamed})
     return data
+
+
+def modify_schema(schema: dict, key: str) -> dict:
+    """
+    Rename a column in the dataframe schema.
+
+    Parameters
+    ----------
+    schema : dict
+        The data schema.
+    key : str
+        The key for the Streamlit session state.
+
+    Returns
+    -------
+    dict
+        The data schema with the renamed column.
+    """
+    with st.popover("Modify"):
+        selected = st.selectbox(
+            "Select column-schema to rename",
+            options=schema["properties"].keys(),
+            key=f"{key}-modify_column_select",
+        )
+        renamed = st.text_input(
+            "Rename to", value=selected, key=f"{key}-modify_column_text"
+        )
+        rename = st.button("Rename", key=f"{key}-modify_column_button")
+        if rename and renamed.strip():
+            schema["properties"][renamed] = schema["properties"].pop(selected)
+            if selected in schema["required"]:
+                schema["required"] = list(
+                    map(
+                        lambda x: x.replace(selected, renamed),
+                        schema["required"],
+                    )
+                )
+    return schema
 
 
 def update_data(key):
@@ -434,6 +485,8 @@ def validate_data(key: str, data=None):
         required = schema.get("required")
         column = data.get(field)
         if required and field in required and not column:
+            # Maybe add column name change button here?
+            st.session_state["workflow_config-form-valid"][key] = False
             st.error(f'Column "{field}" is required but not found.')
         elif column:
             rows = []

@@ -34,6 +34,7 @@ if workflow is not None:
         store = st.button("Store", disabled=(not desc) | (not analysis_name))
         if store:
             if st.session_state.get("workflow_config-form-valid"):
+                valid = True
                 invalid_fields = [
                     key
                     for key, value in st.session_state.get(
@@ -41,13 +42,12 @@ if workflow is not None:
                     ).items()
                     if value is False
                 ]
-                invalid_fields_str = ", ".join(invalid_fields)
-                st.error(
-                    f'The following field{"s are" if len(invalid_fields) > 1 else " is"} incorrect: {invalid_fields_str}'
-                )
-                valid = False if invalid_fields else True
-            else:
-                valid = True
+                if invalid_fields:
+                    invalid_fields_str = ", ".join(invalid_fields)
+                    st.error(
+                        f'The following field{"s are" if len(invalid_fields) > 1 else " is"} incorrect: {invalid_fields_str}'
+                    )
+                    valid = False
             if valid:
                 Analysis(
                     address=address,

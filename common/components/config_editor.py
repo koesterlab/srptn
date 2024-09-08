@@ -84,7 +84,7 @@ def create_form(config: dict, schema: dict, wd, parent_key: str = "") -> dict:
     return config
 
 
-@st.experimental_fragment
+@st.fragment
 def get_input_element(
     label: str, value: any, input_dict: dict, key: str, required: bool, wd
 ) -> any:

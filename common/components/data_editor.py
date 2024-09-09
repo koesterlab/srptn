@@ -101,6 +101,7 @@ def data_editor(data: pd.DataFrame, key: str):
     validate_data(key, data)
 
 
+# @st.fragment
 def data_selector(label: str, value: str, key: str, wd) -> tuple[str, bool]:
     """
     Create a data selector widget in Streamlit.
@@ -125,22 +126,38 @@ def data_selector(label: str, value: str, key: str, wd) -> tuple[str, bool]:
     col1, col2 = st.columns([9, 1])
     with col1:
         input_value = st.text_input(
-            label=label, value=value, key=key, label_visibility="collapsed"
+            label=label,
+            value=value,
+            key=key,
+            disabled=True,
+            label_visibility="collapsed",
         )
     data_key = key + "-data"
-    if data_key not in st.session_state:
+    data_key_changed = key + "-data_token"
+    data_schema_key = key + "-schema"
+
+    if (
+        data_key not in st.session_state
+        or data_key_changed not in st.session_state
+        or st.session_state.get(data_key_changed) != input_value
+    ):
+        # In preparation for new data storing that will allow hotswap of data
+        if data_schema_key in st.session_state:
+            st.session_state.pop(data_schema_key)
         st.session_state[data_key] = get_data_table(input_value)
+        st.session_state[data_key_changed] = input_value
+
     if not isinstance(st.session_state[data_key], pd.DataFrame):
         st.error(f'File {value.split("/")[-1]} not found!')
         return input_value, False
-    schema_key = key + "-schema"
-    if schema_key not in st.session_state:
+
+    if data_schema_key not in st.session_state:
         data_schema = wd.get_json_schema(value.split("/")[-1].split(".")[0])
         if data_schema:
             final_schema = update_schema(data_schema, st.session_state[data_key])
         else:
             final_schema = infer_schema(st.session_state[data_key])
-        st.session_state[schema_key] = final_schema
+        st.session_state[data_schema_key] = final_schema
 
     with col2:
         show_data = toggle_button("Edit", key)
@@ -260,7 +277,6 @@ def get_data_table(file_name: str) -> pd.DataFrame:
     return data
 
 
-# @st.fragment
 def process_user_code(data: pd.DataFrame, key: str) -> pd.DataFrame:
     """
     Modify the dataframe using user-provided Python code.

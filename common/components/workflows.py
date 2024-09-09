@@ -3,9 +3,8 @@ from pathlib import Path
 
 import streamlit as st
 from snakedeploy.deploy import WorkflowDeployer
-from streamlit_ace import st_ace
 
-from common.components.config_editor import config_editor
+from common.components.config_editor import ace_config_editor, config_editor
 from common.components.ui_components import persistend_text_input
 from common.data.entities.workflow import Workflow
 
@@ -92,7 +91,8 @@ def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
         if config_viewer == "Form":
             config = config_editor(conf_path, wd)
         else:
-            config = st_ace(conf_path.read_text(), language="yaml")
+            config = ace_config_editor(conf_path, wd)
+            pass
         with open(conf_path, "w") as f:
             f.write(config)
     return tmpdir

@@ -3,10 +3,19 @@ import re
 import streamlit as st
 import yaml
 from pandas import DataFrame
+from streamlit_ace import st_ace
 from streamlit_tags import st_tags
 
 from common.components.data_editor import data_editor, data_selector
 from common.components.schemas import get_property_type, infer_schema, update_schema
+
+
+def ace_config_editor(conf_path: str, wd):
+    config, final_schema = load_config_and_schema(conf_path, wd)
+    st.session_state["workflow_config-form-valid"] = {}
+    create_form(config, final_schema, wd, "workflow_config-", ace_editor=True)
+    config = st_ace(conf_path.read_text(), language="yaml")
+    return config
 
 
 def config_editor(conf_path: str, wd) -> dict:
@@ -32,7 +41,9 @@ def config_editor(conf_path: str, wd) -> dict:
     return config
 
 
-def create_form(config: dict, schema: dict, wd, parent_key: str = "") -> dict:
+def create_form(
+    config: dict, schema: dict, wd, parent_key: str = "", ace_editor: bool = False
+) -> dict:
     """
     Create a pseudo Streamlit form based on a config dictionary and schema.
 
@@ -59,28 +70,37 @@ def create_form(config: dict, schema: dict, wd, parent_key: str = "") -> dict:
         if not isinstance(value, dict):  # check for leaf nodes = endpoints
             unique_element_id = update_key(parent_key, key)
             input_dict = schema[prop_key].get(key)
-            config[key] = get_input_element(
-                key,
-                value,
-                input_dict,
-                unique_element_id,
-                required_fields and key in required_fields,
-                wd,
-            )
+            if not ace_editor or (
+                input_dict["type"] == "string"
+                and value.endswith((".tsv", ".csv", ".xlsx"))
+            ):
+                config[key] = get_input_element(
+                    key,
+                    value,
+                    input_dict,
+                    unique_element_id,
+                    required_fields and key in required_fields,
+                    wd,
+                )
         else:
             new_tabs.append((key, value))
 
     if new_tabs:
-        tabs = st.tabs([key for key, _ in new_tabs])
+        if not ace_editor:
+            tabs = st.tabs([key for key, _ in new_tabs])
         for tab, (key, value) in enumerate(new_tabs):
             updated_parent_key = update_key(parent_key, key)
             if prop_key == "patternProperties":
                 if not re.search(list(schema[prop_key].keys())[0], key):
                     st.error("Field name does not match schema.")
                 key = list(schema[prop_key].keys())[0]
-            with tabs[tab]:
+            if not ace_editor:
+                with tabs[tab]:
+                    new_schema = schema[prop_key].get(key)
+                    create_form(value, new_schema, wd, updated_parent_key)
+            else:
                 new_schema = schema[prop_key].get(key)
-                create_form(value, new_schema, wd, updated_parent_key)
+                create_form(value, new_schema, wd, updated_parent_key, ace_editor=True)
     return config
 
 

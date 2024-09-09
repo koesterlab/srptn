@@ -10,7 +10,22 @@ from common.components.data_editor import data_editor, data_selector
 from common.components.schemas import get_property_type, infer_schema, update_schema
 
 
-def ace_config_editor(conf_path: str, wd):
+def ace_config_editor(conf_path: str, wd) -> dict:
+    """
+    Edit a configuration file in the Streamlit app with st_ace.
+
+    Parameters
+    ----------
+    conf_path : Path
+        The path to the configuration file.
+    wd : WorkflowDeployer
+        An object providing data-related functions.
+
+    Returns
+    -------
+    dict
+        The updated configuration
+    """
     config, final_schema = load_config_and_schema(conf_path, wd)
     st.session_state["workflow_config-form-valid"] = {}
     create_form(config, final_schema, wd, "workflow_config-", ace_editor=True)
@@ -31,8 +46,8 @@ def config_editor(conf_path: str, wd) -> dict:
 
     Returns
     -------
-    str
-        The updated configuration as a YAML string.
+    dict
+        The updated configuration.
     """
     config, final_schema = load_config_and_schema(conf_path, wd)
     st.session_state["workflow_config-form-valid"] = {}
@@ -57,6 +72,8 @@ def create_form(
         An object providing data-related functions.
     parent_key : str, optional
         The key of the parent config item, by default "".
+    ace_editor : bool, optional
+        Different behavior for inputs accompanying the ace_editor
 
     Returns
     -------

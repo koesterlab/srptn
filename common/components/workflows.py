@@ -19,7 +19,7 @@ def workflow_selector() -> Workflow | None:
         The selected workflow or None if the input is incomplete.
     """
 
-    if "workflow-branch" in st.session_state:
+    if "workflow-url" in st.session_state:
         changed = [
             st.session_state["workflow-url"],
             st.session_state["workflow-tag"],

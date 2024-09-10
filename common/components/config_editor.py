@@ -23,8 +23,8 @@ def ace_config_editor(conf_path: str, wd) -> dict:
 
     Returns
     -------
-    dict
-        The updated configuration
+    str
+        The updated configuration as a YAML string.
     """
     config, final_schema = load_config_and_schema(conf_path, wd)
     st.session_state["workflow_config-form-valid"] = {}
@@ -46,8 +46,8 @@ def config_editor(conf_path: str, wd) -> dict:
 
     Returns
     -------
-    dict
-        The updated configuration.
+    str
+        The updated configuration as a YAML string.
     """
     config, final_schema = load_config_and_schema(conf_path, wd)
     st.session_state["workflow_config-form-valid"] = {}

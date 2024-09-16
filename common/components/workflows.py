@@ -21,32 +21,32 @@ def workflow_selector() -> Workflow | None:
 
     if "workflow-url" in st.session_state:
         changed = [
-            st.session_state["workflow-url"],
-            st.session_state["workflow-tag"],
-            st.session_state["workflow-branch"],
+            st.session_state["workflow-meta-url"],
+            st.session_state["workflow-meta-tag"],
+            st.session_state["workflow-meta-branch"],
         ]
     else:
         changed = [""] * 3
 
     url = persistend_text_input(
         "Workflow repository URL (e.g. https://github.com/snakemake-workflows/rna-seq-kallisto-sleuth)",
-        "workflow-url",
+        "workflow-meta-url",
     )
 
     tag = persistend_text_input(
         "Workflow repository tag (optional)",
-        "workflow-tag",
+        "workflow-meta-tag",
     )
 
     branch = persistend_text_input(
         "Workflow repository branch (optional)",
-        "workflow-branch",
+        "workflow-meta-branch",
     )
 
     # upon change of any of the inputs above -> clear session_state of the config
     if url != changed[0] or tag != changed[1] or branch != changed[2]:
         for key in st.session_state.keys():
-            if key.startswith("workflow_config-"):
+            if key.startswith("workflow-config-"):
                 del st.session_state[key]
 
     if url and (tag or branch):
@@ -77,7 +77,7 @@ def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
     ) as wd:
         wd.deploy(None)
 
-        st.session_state["workflow_config-dir_path"] = tmpdir_path
+        st.session_state["workflow-config-dir_path"] = tmpdir_path
         conf_path = tmpdir_path / "config" / "config.yaml"
         config_viewer = st.radio(
             "Configuration editor mode",
@@ -92,7 +92,7 @@ def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
             config = config_editor(conf_path, wd)
         else:
             config = ace_config_editor(conf_path, wd)
-            pass
+
         with open(conf_path, "w") as f:
             f.write(config)
     return tmpdir

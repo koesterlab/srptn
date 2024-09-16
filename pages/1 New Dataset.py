@@ -18,7 +18,7 @@ if data_store.has_entity(address):
     st.error(f"Dataset {address} already exists")
     st.stop()
 
-desc = desc_editor()
+desc = desc_editor("new_dataset-meta")
 
 files = st.file_uploader("Files", accept_multiple_files=True)
 

@@ -84,10 +84,12 @@ def data_editor(data: pd.DataFrame, key: str):
     with col4:
         data = custom_upload(data, key)
     with col5:
-        schema_key = key + "-schema"
-        st.session_state[schema_key] = modify_schema(
-            st.session_state[schema_key], schema_key
-        )
+        data = data_fill(data, key)
+    # with col5:
+    #     schema_key = key + "-schema"
+    #     st.session_state[schema_key] = modify_schema(
+    #         st.session_state[schema_key], schema_key
+    #     )
     data = process_user_code(data, key)
     data = st.session_state[key + "-placeholders"][2].data_editor(
         data,
@@ -101,6 +103,51 @@ def data_editor(data: pd.DataFrame, key: str):
     validate_data(key, data)
 
 
+def data_fill(data: pd.DataFrame, key: str) -> pd.DataFrame:
+    """
+    Fill the configuration file with data from the selected dataset.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        The dataframe to be replaced with the uploaded file.
+    key : str
+        The key for the Streamlit session state.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The dataframe with specified column added
+    """
+    with st.popover("Fill"):
+        if "workflow-meta-datasets-sheet" in st.session_state.keys():
+            dataset = st.session_state.get("workflow-meta-datasets-sheet")
+            selected = st.selectbox(
+                "Select column to fill",
+                options=dataset.columns,
+                key=f"{key}-fill_column_select",
+            )
+
+            data_modified = data.copy()
+            if len(dataset) > len(data_modified):
+                data_modified = data_modified.reindex(range(len(dataset)))
+            data_modified[selected] = dataset[selected]
+
+            st.data_editor(
+                data_modified,
+                height=225,
+                use_container_width=True,
+                disabled=True,
+                num_rows="fixed",
+                key=f"{key}-fill_preview_window",
+            )
+            replace = st.button("Confirm", key=f"{key}-fill_button")
+            if replace:
+                data = data_modified
+    return data
+
+
+# Fill button
 # @st.fragment
 def data_selector(label: str, value: str, key: str, wd) -> tuple[str, bool]:
     """
@@ -222,13 +269,13 @@ def execute_custom_code(
         (key, value)
         for key, value in st.session_state.items()
         if (
-            key.startswith("workflow_config-")
+            key.startswith("workflow-config-")
             and key.endswith("-data")
             and isinstance(value, pd.DataFrame)
             and value.to_string() != data.to_string()
         )
     ]:
-        local_var_key = key.split("-")[1].split(".")[-1]
+        local_var_key = key.split("-")[2].split(".")[-1]
         if dataframe_type == "Polars":
             local_vars[local_var_key] = pl.from_pandas(value)
         if dataframe_type == "Pandas":
@@ -262,7 +309,7 @@ def get_data_table(file_name: str) -> pd.DataFrame:
     This function reads a file from the directory specified in the Streamlit session state and loads it into a
     pandas DataFrame. The function supports `.tsv`, `.csv`, and `.xlsx` file formats.
     """
-    table_path = st.session_state["workflow_config-dir_path"] / file_name
+    table_path = st.session_state["workflow-config-dir_path"] / file_name
     try:
         match file_name:
             case file_name if file_name.endswith(".tsv"):
@@ -491,7 +538,7 @@ def validate_data(key: str, data=None):
     -----
     This function checks if the data conforms to the required schema and highlights errors.
     """
-    st.session_state["workflow_config-form-valid"][key] = True
+    st.session_state["workflow-config-form-valid"][key] = True
     if not isinstance(data, pd.DataFrame):
         data = st.session_state[key + "-data"]
     data = data.to_dict(orient="list")
@@ -501,7 +548,7 @@ def validate_data(key: str, data=None):
         column = data.get(field)
         if required and field in required and not column:
             # Maybe add column name change button here?
-            st.session_state["workflow_config-form-valid"][key] = False
+            st.session_state["workflow-config-form-valid"][key] = False
             st.error(f'Column "{field}" is required but not found.')
         elif column:
             rows = []
@@ -523,7 +570,7 @@ def validate_data(key: str, data=None):
                 if not valid:
                     rows.append(str(idx + 1))
             if rows:
-                st.session_state["workflow_config-form-valid"][key] = False
+                st.session_state["workflow-config-form-valid"][key] = False
                 rowstring = "s " + ", ".join(rows) if len(rows) > 1 else " " + rows[0]
                 st.error(
                     f'Column "{field}" expects a "{schema["properties"][field]["type"]}" on row{rowstring}.'

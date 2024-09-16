@@ -27,8 +27,8 @@ def ace_config_editor(conf_path: str, wd) -> dict:
         The updated configuration as a YAML string.
     """
     config, final_schema = load_config_and_schema(conf_path, wd)
-    st.session_state["workflow_config-form-valid"] = {}
-    create_form(config, final_schema, wd, "workflow_config-", ace_editor=True)
+    st.session_state["workflow-config-form-valid"] = {}
+    create_form(config, final_schema, wd, "workflow-config-", ace_editor=True)
     config = st_ace(conf_path.read_text(), language="yaml")
     return config
 
@@ -50,8 +50,8 @@ def config_editor(conf_path: str, wd) -> dict:
         The updated configuration as a YAML string.
     """
     config, final_schema = load_config_and_schema(conf_path, wd)
-    st.session_state["workflow_config-form-valid"] = {}
-    config = create_form(config, final_schema, wd, "workflow_config-")
+    st.session_state["workflow-config-form-valid"] = {}
+    config = create_form(config, final_schema, wd, "workflow-config-")
     config = yaml.dump(config, sort_keys=False)
     return config
 
@@ -203,8 +203,8 @@ def get_input_element(
     if required:
         valid = validate_input(input_value, input_type)
         # data inputs are validated in the data_editor and must not be overwritten here
-        if key not in st.session_state["workflow_config-form-valid"]:
-            st.session_state["workflow_config-form-valid"][key] = valid
+        if key not in st.session_state["workflow-config-form-valid"]:
+            st.session_state["workflow-config-form-valid"][key] = valid
         if not valid:
             report_invalid_input(input_value, key, input_type)
     return input_value

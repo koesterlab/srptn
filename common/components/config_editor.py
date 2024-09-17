@@ -28,8 +28,14 @@ def ace_config_editor(conf_path: str, wd) -> dict:
     """
     config, final_schema = load_config_and_schema(conf_path, wd)
     st.session_state["workflow-config-form-valid"] = {}
-    create_form(config, final_schema, wd, "workflow-config-", ace_editor=True)
     config = st_ace(conf_path.read_text(), language="yaml")
+    create_form(
+        yaml.safe_load(config),
+        final_schema,
+        wd,
+        "workflow-config-",
+        ace_editor=True,
+    )
     return config
 
 
@@ -89,16 +95,21 @@ def create_form(
             input_dict = schema[prop_key].get(key)
             if not ace_editor or (
                 input_dict["type"] == "string"
+                and value
                 and value.endswith((".tsv", ".csv", ".xlsx"))
             ):
-                config[key] = get_input_element(
-                    key,
-                    value,
-                    input_dict,
-                    unique_element_id,
-                    required_fields and key in required_fields,
-                    wd,
-                )
+                only_validation = False
+            else:
+                only_validation = True
+            config[key] = get_input_element(
+                key,
+                value,
+                input_dict,
+                unique_element_id,
+                required_fields and key in required_fields,
+                wd,
+                ace_editor=only_validation,
+            )
         else:
             new_tabs.append((key, value))
 
@@ -123,10 +134,16 @@ def create_form(
 
 @st.fragment
 def get_input_element(
-    label: str, value: any, input_dict: dict, key: str, required: bool, wd
+    label: str,
+    value: any,
+    input_dict: dict,
+    key: str,
+    required: bool,
+    wd,
+    ace_editor: bool,
 ) -> any:
     """
-    Get the appropriate Streamlit input element based on the input type.
+    Get the appropriate Streamlit input element based on the input type and validate it.
 
     Parameters
     ----------
@@ -142,64 +159,77 @@ def get_input_element(
         Whether the input element is required.
     wd : WorkflowDeployer
         An object providing data-related functions.
+    ace_editor : bool
+        Different behavior for inputs accompanying the ace_editor
 
     Returns
     -------
     any
         The value of the input element after user input.
+
+    Notes
+    -----
+    Input generation and validation combined with @st.fragment to create inputs that do not cause page reload on change but can still produce verbose warnings and errors.
     """
-    input_value = None
+    input_value = value
     input_type = input_dict.get("type")
-    match input_type:
-        case input_type if input_type == "array" or "array" in input_type or (
-            isinstance(input_type, list) and isinstance(value, list)
-        ):
-            # cannot differentiate type here ~ no way to represent array of ints or floats except stringified
-            if not isinstance(value, list):
-                value = [value]
-            input_value = st_tags(
-                label=label,
-                value=value,
-                key=key,
-            )
-        case input_type if isinstance(input_type, list) and not isinstance(value, list):
-            # input has multiple types and value is not a list => text_input can handle all remaining types
-            input_value = st.text_input(label=label, value=value, key=key)
-        case input_type if input_type == "string":
-            if not value.endswith((".tsv", ".csv", ".xlsx")):
-                input_value = st.text_input(label=label, value=value, key=key)
-            else:
-                input_value, show_data = data_selector(label, value, key, wd)
-                data_key = key + "-data"
-                # workaround for popver and expander "bug"
-                st.session_state[key + "-placeholders"] = [st.empty() for _ in range(3)]
-                if show_data & isinstance(st.session_state[data_key], DataFrame):
-                    data_editor(st.session_state[data_key], key)
-        case input_type if input_type == "integer":
-            input_value = st.number_input(label=label, value=value, key=key)
-        case input_type if input_type == "number":
-            if "e" in str(value).lower():
-                input_value = st.text_input(label=label, value=value, key=key)
-            else:
-                input_value = st.number_input(
+    if not ace_editor:  # Do not show in ace_editor just validate
+        match input_type:
+            case input_type if input_type == "array" or "array" in input_type or (
+                isinstance(input_type, list) and isinstance(value, list)
+            ):
+                # cannot differentiate type here ~ no way to represent array of ints or floats except stringified
+                if not isinstance(value, list):
+                    value = [value]
+                input_value = st_tags(
                     label=label,
                     value=value,
                     key=key,
-                    step=10
-                    ** -len(str(value).split(".")[-1]),  # infer significant decimals
-                    format="%f",
                 )
-        case input_type if input_type == "boolean":
-            input_value = st.checkbox(label=label, value=value, key=key)
-        case input_type if input_type == "missing":
-            # empty endpoints default to list
-            input_value = st_tags(
-                label=label,
-                value=value,
-                key=key,
-            )
-        case input_type:
-            st.error("No fitting input was found for your data!")
+            case input_type if isinstance(input_type, list) and not isinstance(
+                value, list
+            ):
+                # input has multiple types and value is not a list => text_input can handle all remaining types
+                input_value = st.text_input(label=label, value=value, key=key)
+            case input_type if input_type == "string":
+                if not value.endswith((".tsv", ".csv", ".xlsx")):
+                    input_value = st.text_input(label=label, value=value, key=key)
+                else:
+                    input_value, show_data = data_selector(label, value, key, wd)
+                    data_key = key + "-data"
+                    # workaround for popver and expander "bug"
+                    st.session_state[key + "-placeholders"] = [
+                        st.empty() for _ in range(3)
+                    ]
+                    if show_data & isinstance(st.session_state[data_key], DataFrame):
+                        data_editor(st.session_state[data_key], key)
+            case input_type if input_type == "integer":
+                input_value = st.number_input(label=label, value=value, key=key)
+            case input_type if input_type == "number":
+                if "e" in str(value).lower():
+                    input_value = st.text_input(label=label, value=value, key=key)
+                else:
+                    input_value = st.number_input(
+                        label=label,
+                        value=value,
+                        key=key,
+                        step=10
+                        ** -len(
+                            str(value).split(".")[-1]
+                        ),  # infer significant decimals
+                        format="%f",
+                    )
+            case input_type if input_type == "boolean":
+                input_value = st.checkbox(label=label, value=value, key=key)
+            case input_type if input_type == "missing":
+                # empty endpoints default to list
+                input_value = st_tags(
+                    label=label,
+                    value=value,
+                    key=key,
+                )
+            case input_type:
+                st.error("No fitting input was found for your data!")
     if required:
         valid = validate_input(input_value, input_type)
         # data inputs are validated in the data_editor and must not be overwritten here
@@ -279,9 +309,9 @@ def report_invalid_input(value: any, key: str, input_type: str):
     input_type : str
         The type of the invalid input.
     """
-    msg = " => ".join(key.split(".")[1:])
+    msg = ">".join(key.split(".")[1:])
     match input_type:
-        case input_type if input_type == "string" and not value.strip():
+        case input_type if input_type == "string" and not str(value).strip():
             st.error(f"{msg} must not be empty")
         case input_type:
             st.error(f"{msg} is filled incorrectly")

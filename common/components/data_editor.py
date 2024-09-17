@@ -547,7 +547,6 @@ def validate_data(key: str, data=None):
         required = schema.get("required")
         column = data.get(field)
         if required and field in required and not column:
-            # Maybe add column name change button here?
             st.session_state["workflow-config-form-valid"][key] = False
             st.error(f'Column "{field}" is required but not found.')
         elif column:

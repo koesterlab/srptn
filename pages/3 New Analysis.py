@@ -16,6 +16,7 @@ owner = "koesterlab"
 data_store = FSDataStore()
 
 categories = category_editor()
+
 analysis_name = persistend_text_input("Analysis name", "workflow-meta-name")
 
 address = Address(owner, Analysis, categories=categories, name=analysis_name)

@@ -18,7 +18,6 @@ def workflow_selector() -> Workflow | None:
     Workflow or None
         The selected workflow or None if the input is incomplete.
     """
-
     if "workflow-url" in st.session_state:
         changed = [
             st.session_state["workflow-meta-url"],

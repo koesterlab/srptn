@@ -120,18 +120,32 @@ def data_fill(data: pd.DataFrame, key: str) -> pd.DataFrame:
         The dataframe with specified column added
     """
     with st.popover("Fill"):
+        selected = None
         if "workflow-meta-datasets-sheet" in st.session_state.keys():
             dataset = st.session_state.get("workflow-meta-datasets-sheet")
             selected = st.selectbox(
-                "Select column to fill",
-                options=dataset.columns,
-                key=f"{key}-fill_column_select",
+                "Select a dataset",
+                options=[names for names in dataset.keys()],
+                key=f"{key}-fill_data_select",
             )
+        if selected:
+            data_selected = dataset[selected]
+            col1, col2 = st.columns(2)
+            with col1:
+                column = st.selectbox(
+                    "From",
+                    options=data_selected.columns,
+                    key=f"{key}-fill_column_select",
+                )
+            with col2:
+                column_alias = st.text_input(
+                    "To", column, key=f"{key}-fill_column_alias"
+                )
 
             data_modified = data.copy()
-            if len(dataset) > len(data_modified):
-                data_modified = data_modified.reindex(range(len(dataset)))
-            data_modified[selected] = dataset[selected]
+            if len(data_selected) > len(data_modified):
+                data_modified = data_modified.reindex(range(len(data_selected)))
+            data_modified[column_alias] = data_selected[column]
 
             st.data_editor(
                 data_modified,

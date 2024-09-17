@@ -30,9 +30,11 @@ def entity_selector(
 
     if entities:
         names = [str(entity.address) for entity in entities]
-        selected = st.selectbox("Select dataset", names, key=key)
+        selected = st.multiselect("Select dataset", names, key=key)
         entities = [entity for entity in entities if str(entity.address) in selected]
-        st.session_state["workflow-meta-datasets-sheet"] = entities[0].sheet
+        st.session_state["workflow-meta-datasets-sheets"] = {
+            entity.address.name: entity.sheet for entity in entities
+        }
         return entities
     else:
         st.warning(f"No {entity_type.__name__.lower()} found")

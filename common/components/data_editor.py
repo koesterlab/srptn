@@ -121,8 +121,8 @@ def data_fill(data: pd.DataFrame, key: str) -> pd.DataFrame:
     """
     with st.popover("Fill"):
         selected = None
-        if "workflow-meta-datasets-sheet" in st.session_state.keys():
-            dataset = st.session_state.get("workflow-meta-datasets-sheet")
+        if "workflow-meta-datasets-sheets" in st.session_state.keys():
+            dataset = st.session_state.get("workflow-meta-datasets-sheets")
             selected = st.selectbox(
                 "Select a dataset",
                 options=[names for names in dataset.keys()],
@@ -143,9 +143,16 @@ def data_fill(data: pd.DataFrame, key: str) -> pd.DataFrame:
                 )
 
             data_modified = data.copy()
-            if len(data_selected) > len(data_modified):
-                data_modified = data_modified.reindex(range(len(data_selected)))
-            data_modified[column_alias] = data_selected[column]
+
+            if column_alias in data_modified.columns:
+                data_as_list = data_modified[column_alias].tolist()
+                data_as_list.extend(data_selected[column].tolist())
+                data_modified = data_modified.reindex(range(len(data_as_list)))
+                data_modified[column_alias] = data_as_list
+            else:
+                if len(data_selected) > len(data_modified):
+                    data_modified = data_modified.reindex(range(len(data_selected)))
+                data_modified[column_alias] = data_selected[column]
 
             st.data_editor(
                 data_modified,

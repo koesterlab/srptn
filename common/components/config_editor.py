@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 
 import streamlit as st
 import yaml
@@ -10,7 +11,7 @@ from common.components.data_editor import data_editor, data_selector
 from common.components.schemas import get_property_type, infer_schema, update_schema
 
 
-def ace_config_editor(conf_path: str, wd) -> dict:
+def ace_config_editor(conf_path: Path, wd) -> str:
     """
     Edit a configuration file in the Streamlit app with st_ace.
 
@@ -39,7 +40,7 @@ def ace_config_editor(conf_path: str, wd) -> dict:
     return config
 
 
-def config_editor(conf_path: str, wd) -> dict:
+def config_editor(conf_path: Path, wd) -> str:
     """
     Edit a configuration file in the Streamlit app.
 
@@ -79,7 +80,7 @@ def create_form(
     parent_key : str, optional
         The key of the parent config item, by default "".
     ace_editor : bool, optional
-        Different behavior for inputs accompanying the ace_editor
+        If True, adjusts input generation and validation to be compatible with the ACE editor interface.
 
     Returns
     -------
@@ -93,14 +94,11 @@ def create_form(
         if not isinstance(value, dict):  # check for leaf nodes = endpoints
             unique_element_id = update_key(parent_key, key)
             input_dict = schema[prop_key].get(key)
-            if not ace_editor or (
+            only_validation = ace_editor and not (
                 input_dict["type"] == "string"
                 and value
                 and value.endswith((".tsv", ".csv", ".xlsx"))
-            ):
-                only_validation = False
-            else:
-                only_validation = True
+            )
             config[key] = get_input_element(
                 key,
                 value,
@@ -172,7 +170,7 @@ def get_input_element(
     Input generation and validation combined with @st.fragment to create inputs that do not cause page reload on change but can still produce verbose warnings and errors.
     """
     input_value = value
-    input_type = input_dict.get("type")
+    input_type = input_dict.get("type", "missing")
     if not ace_editor:  # Do not show in ace_editor just validate
         match input_type:
             case input_type if input_type == "array" or "array" in input_type or (
@@ -214,8 +212,8 @@ def get_input_element(
                         value=value,
                         key=key,
                         step=10
-                        ** -len(
-                            str(value).split(".")[-1]
+                        ** (
+                            -len(str(value).split(".")[-1]) if "." in str(value) else 0
                         ),  # infer significant decimals
                         format="%f",
                     )

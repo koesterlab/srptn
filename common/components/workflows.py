@@ -44,7 +44,7 @@ def workflow_selector() -> Workflow | None:
 
     # upon change of any of the inputs above -> clear session_state of the config
     if url != changed[0] or tag != changed[1] or branch != changed[2]:
-        for key in st.session_state.keys():
+        for key in st.session_state:
             if key.startswith("workflow-config-"):
                 del st.session_state[key]
 

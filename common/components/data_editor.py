@@ -85,11 +85,6 @@ def data_editor(data: pd.DataFrame, key: str):
         data = custom_upload(data, key)
     with col5:
         data = data_fill(data, key)
-    # with col5:
-    #     schema_key = key + "-schema"
-    #     st.session_state[schema_key] = modify_schema(
-    #         st.session_state[schema_key], schema_key
-    #     )
     data = process_user_code(data, key)
     data = st.session_state[key + "-placeholders"][2].data_editor(
         data,
@@ -121,11 +116,11 @@ def data_fill(data: pd.DataFrame, key: str) -> pd.DataFrame:
     """
     with st.popover("Fill"):
         selected = None
-        if "workflow-meta-datasets-sheets" in st.session_state.keys():
+        if "workflow-meta-datasets-sheets" in st.session_state:
             dataset = st.session_state.get("workflow-meta-datasets-sheets")
             selected = st.selectbox(
                 "Select a dataset",
-                options=[names for names in dataset.keys()],
+                options=list(dataset),
                 key=f"{key}-fill_data_select",
             )
         if selected:
@@ -147,11 +142,15 @@ def data_fill(data: pd.DataFrame, key: str) -> pd.DataFrame:
             if column_alias in data_modified.columns:
                 data_as_list = data_modified[column_alias].tolist()
                 data_as_list.extend(data_selected[column].tolist())
-                data_modified = data_modified.reindex(range(len(data_as_list)))
+                data_modified = data_modified.reindex(
+                    range(len(data_as_list)), fill_value=""
+                )
                 data_modified[column_alias] = data_as_list
             else:
                 if len(data_selected) > len(data_modified):
-                    data_modified = data_modified.reindex(range(len(data_selected)))
+                    data_modified = data_modified.reindex(
+                        range(len(data_selected)), fill_value=""
+                    )
                 data_modified[column_alias] = data_selected[column]
 
             st.data_editor(
@@ -168,8 +167,6 @@ def data_fill(data: pd.DataFrame, key: str) -> pd.DataFrame:
     return data
 
 
-# Fill button
-# @st.fragment
 def data_selector(label: str, value: str, key: str, wd) -> tuple[str, bool]:
     """
     Create a data selector widget in Streamlit.
@@ -293,7 +290,7 @@ def execute_custom_code(
             key.startswith("workflow-config-")
             and key.endswith("-data")
             and isinstance(value, pd.DataFrame)
-            and value.to_string() != data.to_string()
+            and not value.equals(data)
         )
     ]:
         local_var_key = key.split("-")[2].split(".")[-1]
@@ -381,7 +378,7 @@ def process_user_code(data: pd.DataFrame, key: str) -> pd.DataFrame:
         else:
             acestring = "# The table is available as df: pd.DataFrame\n"
         acestring = (
-            acestring + "# All other tables are accessbile through their file name\n"
+            acestring + "# All other tables are accessible through their file name\n"
         )
         c1, c2 = st.columns([3.25, 1])
         with c1:
@@ -395,8 +392,8 @@ def process_user_code(data: pd.DataFrame, key: str) -> pd.DataFrame:
             )
         no_import = True
         if "import " in user_code:
-            for line in user_code:
-                if not line.strip().startswith("import"):
+            for line in user_code.splitlines():
+                if line.strip().startswith("import"):
                     no_import = False
                     st.error("Remove line with 'import' as no imports are allowed.")
                     break
@@ -506,10 +503,13 @@ def update_data(key):
     """
     editor = st.session_state[key + "-editor"]["edited_rows"]
     data = st.session_state[key + "-data"]
-    coldictkey = list(editor.keys())[0]
-    colname = list(editor[coldictkey].keys())[0]
-    data.loc[coldictkey, colname] = editor[coldictkey][colname]
-    st.session_state[key + "-data"] = data
+    if editor:
+        coldictkey = list(editor.keys())[0]
+        colname = list(editor[coldictkey].keys())[0]
+        data.loc[coldictkey, colname] = editor[coldictkey][colname]
+        st.session_state[key + "-data"] = data
+    else:
+        st.warning("No edits detected in the data editor.")
 
 
 def upload_data_table(uploaded_file) -> pd.DataFrame:
@@ -576,13 +576,11 @@ def validate_data(key: str, data=None):
                 valid = True
                 match schema["properties"][field]["type"]:
                     case typing if typing == "boolean":
-                        if not any(
-                            value == bools for bools in ("True", "False", "0", "1")
-                        ):
+                        if not any(str(value).lower() in ("true", "false", "0", "1")):
                             valid = False
                     case typing if typing == "string":
                         # no isinstance as the value might be an int or float as string
-                        if not str(value).strip() or not value:
+                        if not isinstance(value, str) or not value.strip():
                             valid = False
                     case typing if typing == "number":
                         if not isinstance(value, (int, float)):

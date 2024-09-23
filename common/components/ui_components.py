@@ -18,7 +18,7 @@ def toggle_button(label: str, key: str) -> bool:
     def toggle(state):
         st.session_state[state] = not st.session_state[state]
 
-    unique_key = key + "-" + label.lower()
+    unique_key = f"{key}-{label.lower()}"
     state = key + "-state"
     if state not in st.session_state:
         st.session_state[state] = False

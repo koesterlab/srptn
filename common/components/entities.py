@@ -23,13 +23,18 @@ def entity_browser(data_store: DataStore, entity_type: Type[Entity], owner: str)
         st.warning(f"No {entity_type.__name__.lower()} found")
 
 
-def entity_selector(data_store: DataStore, entity_type: Type[Entity]) -> List[Entity]:
+def entity_selector(
+    data_store: DataStore, entity_type: Type[Entity], key: str
+) -> List[Entity]:
     entities = data_store.entities(entity_type=entity_type)
 
     if entities:
         names = [str(entity.address) for entity in entities]
-        selected = set(st.multiselect("Select datasets", names))
+        selected = st.multiselect("Select dataset", names, key=key)
         entities = [entity for entity in entities if str(entity.address) in selected]
+        st.session_state["workflow-meta-datasets-sheets"] = {
+            entity.address.name: entity.sheet for entity in entities
+        }
         return entities
     else:
         st.warning(f"No {entity_type.__name__.lower()} found")

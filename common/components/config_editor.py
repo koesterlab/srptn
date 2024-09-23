@@ -1,15 +1,46 @@
 import re
+from pathlib import Path
 
 import streamlit as st
 import yaml
 from pandas import DataFrame
+from streamlit_ace import st_ace
 from streamlit_tags import st_tags
 
 from common.components.data_editor import data_editor, data_selector
 from common.components.schemas import get_property_type, infer_schema, update_schema
 
 
-def config_editor(conf_path: str, wd) -> dict:
+def ace_config_editor(conf_path: Path, wd) -> str:
+    """
+    Edit a configuration file in the Streamlit app with st_ace.
+
+    Parameters
+    ----------
+    conf_path : Path
+        The path to the configuration file.
+    wd : WorkflowDeployer
+        An object providing data-related functions.
+
+    Returns
+    -------
+    str
+        The updated configuration as a YAML string.
+    """
+    config, final_schema = load_config_and_schema(conf_path, wd)
+    st.session_state["workflow-config-form-valid"] = {}
+    config = st_ace(conf_path.read_text(), language="yaml")
+    create_form(
+        yaml.safe_load(config),
+        final_schema,
+        wd,
+        "workflow-config-",
+        ace_editor=True,
+    )
+    return config
+
+
+def config_editor(conf_path: Path, wd) -> str:
     """
     Edit a configuration file in the Streamlit app.
 
@@ -26,13 +57,15 @@ def config_editor(conf_path: str, wd) -> dict:
         The updated configuration as a YAML string.
     """
     config, final_schema = load_config_and_schema(conf_path, wd)
-    st.session_state["workflow_config-form-valid"] = {}
-    config = create_form(config, final_schema, wd, "workflow_config-")
+    st.session_state["workflow-config-form-valid"] = {}
+    config = create_form(config, final_schema, wd, "workflow-config-")
     config = yaml.dump(config, sort_keys=False)
     return config
 
 
-def create_form(config: dict, schema: dict, wd, parent_key: str = "") -> dict:
+def create_form(
+    config: dict, schema: dict, wd, parent_key: str = "", ace_editor: bool = False
+) -> dict:
     """
     Create a pseudo Streamlit form based on a config dictionary and schema.
 
@@ -46,6 +79,8 @@ def create_form(config: dict, schema: dict, wd, parent_key: str = "") -> dict:
         An object providing data-related functions.
     parent_key : str, optional
         The key of the parent config item, by default "".
+    ace_editor : bool, optional
+        If True, adjusts input generation and validation to be compatible with the ACE editor interface.
 
     Returns
     -------
@@ -59,6 +94,11 @@ def create_form(config: dict, schema: dict, wd, parent_key: str = "") -> dict:
         if not isinstance(value, dict):  # check for leaf nodes = endpoints
             unique_element_id = update_key(parent_key, key)
             input_dict = schema[prop_key].get(key)
+            only_validation = ace_editor and not (
+                input_dict["type"] == "string"
+                and value
+                and value.endswith((".tsv", ".csv", ".xlsx"))
+            )
             config[key] = get_input_element(
                 key,
                 value,
@@ -66,30 +106,42 @@ def create_form(config: dict, schema: dict, wd, parent_key: str = "") -> dict:
                 unique_element_id,
                 required_fields and key in required_fields,
                 wd,
+                ace_editor=only_validation,
             )
         else:
             new_tabs.append((key, value))
 
     if new_tabs:
-        tabs = st.tabs([key for key, _ in new_tabs])
+        if not ace_editor:
+            tabs = st.tabs([key for key, _ in new_tabs])
         for tab, (key, value) in enumerate(new_tabs):
             updated_parent_key = update_key(parent_key, key)
             if prop_key == "patternProperties":
                 if not re.search(list(schema[prop_key].keys())[0], key):
                     st.error("Field name does not match schema.")
                 key = list(schema[prop_key].keys())[0]
-            with tabs[tab]:
+            if not ace_editor:
+                with tabs[tab]:
+                    new_schema = schema[prop_key].get(key)
+                    create_form(value, new_schema, wd, updated_parent_key)
+            else:
                 new_schema = schema[prop_key].get(key)
-                create_form(value, new_schema, wd, updated_parent_key)
+                create_form(value, new_schema, wd, updated_parent_key, ace_editor=True)
     return config
 
 
-@st.experimental_fragment
+@st.fragment
 def get_input_element(
-    label: str, value: any, input_dict: dict, key: str, required: bool, wd
+    label: str,
+    value: any,
+    input_dict: dict,
+    key: str,
+    required: bool,
+    wd,
+    ace_editor: bool,
 ) -> any:
     """
-    Get the appropriate Streamlit input element based on the input type.
+    Get the appropriate Streamlit input element based on the input type and validate it.
 
     Parameters
     ----------
@@ -105,69 +157,82 @@ def get_input_element(
         Whether the input element is required.
     wd : WorkflowDeployer
         An object providing data-related functions.
+    ace_editor : bool
+        Different behavior for inputs accompanying the ace_editor
 
     Returns
     -------
     any
         The value of the input element after user input.
+
+    Notes
+    -----
+    Input generation and validation combined with @st.fragment to create inputs that do not cause page reload on change but can still produce verbose warnings and errors.
     """
-    input_value = None
-    input_type = input_dict.get("type")
-    match input_type:
-        case input_type if input_type == "array" or "array" in input_type or (
-            isinstance(input_type, list) and isinstance(value, list)
-        ):
-            # cannot differentiate type here ~ no way to represent array of ints or floats except stringified
-            if not isinstance(value, list):
-                value = [value]
-            input_value = st_tags(
-                label=label,
-                value=value,
-                key=key,
-            )
-        case input_type if isinstance(input_type, list) and not isinstance(value, list):
-            # input has multiple types and value is not a list => text_input can handle all remaining types
-            input_value = st.text_input(label=label, value=value, key=key)
-        case input_type if input_type == "string":
-            if not value.endswith((".tsv", ".csv", ".xlsx")):
-                input_value = st.text_input(label=label, value=value, key=key)
-            else:
-                input_value, show_data = data_selector(label, value, key, wd)
-                data_key = key + "-data"
-                # workaround for popver and expander "bug"
-                st.session_state[key + "-placeholders"] = [st.empty() for _ in range(3)]
-                if show_data & isinstance(st.session_state[data_key], DataFrame):
-                    data_editor(st.session_state[data_key], key)
-        case input_type if input_type == "integer":
-            input_value = st.number_input(label=label, value=value, key=key)
-        case input_type if input_type == "number":
-            if "e" in str(value).lower():
-                input_value = st.text_input(label=label, value=value, key=key)
-            else:
-                input_value = st.number_input(
+    input_value = value
+    input_type = input_dict.get("type", "missing")
+    if not ace_editor:  # Do not show in ace_editor just validate
+        match input_type:
+            case input_type if input_type == "array" or "array" in input_type or (
+                isinstance(input_type, list) and isinstance(value, list)
+            ):
+                # cannot differentiate type here ~ no way to represent array of ints or floats except stringified
+                if not isinstance(value, list):
+                    value = [value]
+                input_value = st_tags(
                     label=label,
                     value=value,
                     key=key,
-                    step=10
-                    ** -len(str(value).split(".")[-1]),  # infer significant decimals
-                    format="%f",
                 )
-        case input_type if input_type == "boolean":
-            input_value = st.checkbox(label=label, value=value, key=key)
-        case input_type if input_type == "missing":
-            # empty endpoints default to list
-            input_value = st_tags(
-                label=label,
-                value=value,
-                key=key,
-            )
-        case input_type:
-            st.error("No fitting input was found for your data!")
+            case input_type if isinstance(input_type, list) and not isinstance(
+                value, list
+            ):
+                # input has multiple types and value is not a list => text_input can handle all remaining types
+                input_value = st.text_input(label=label, value=value, key=key)
+            case input_type if input_type == "string":
+                if not value.endswith((".tsv", ".csv", ".xlsx")):
+                    input_value = st.text_input(label=label, value=value, key=key)
+                else:
+                    input_value, show_data = data_selector(label, value, key, wd)
+                    data_key = key + "-data"
+                    # workaround for popver and expander "bug"
+                    st.session_state[key + "-placeholders"] = [
+                        st.empty() for _ in range(3)
+                    ]
+                    if show_data & isinstance(st.session_state[data_key], DataFrame):
+                        data_editor(st.session_state[data_key], key)
+            case input_type if input_type == "integer":
+                input_value = st.number_input(label=label, value=value, key=key)
+            case input_type if input_type == "number":
+                if "e" in str(value).lower():
+                    input_value = st.text_input(label=label, value=value, key=key)
+                else:
+                    input_value = st.number_input(
+                        label=label,
+                        value=value,
+                        key=key,
+                        step=10
+                        ** (
+                            -len(str(value).split(".")[-1]) if "." in str(value) else 0
+                        ),  # infer significant decimals
+                        format="%f",
+                    )
+            case input_type if input_type == "boolean":
+                input_value = st.checkbox(label=label, value=value, key=key)
+            case input_type if input_type == "missing":
+                # empty endpoints default to list
+                input_value = st_tags(
+                    label=label,
+                    value=value,
+                    key=key,
+                )
+            case input_type:
+                st.error("No fitting input was found for your data!")
     if required:
         valid = validate_input(input_value, input_type)
         # data inputs are validated in the data_editor and must not be overwritten here
-        if key not in st.session_state["workflow_config-form-valid"]:
-            st.session_state["workflow_config-form-valid"][key] = valid
+        if key not in st.session_state["workflow-config-form-valid"]:
+            st.session_state["workflow-config-form-valid"][key] = valid
         if not valid:
             report_invalid_input(input_value, key, input_type)
     return input_value
@@ -242,9 +307,9 @@ def report_invalid_input(value: any, key: str, input_type: str):
     input_type : str
         The type of the invalid input.
     """
-    msg = " => ".join(key.split(".")[1:])
+    msg = ">".join(key.split(".")[1:])
     match input_type:
-        case input_type if input_type == "string" and not value.strip():
+        case input_type if input_type == "string" and not str(value).strip():
             st.error(f"{msg} must not be empty")
         case input_type:
             st.error(f"{msg} is filled incorrectly")

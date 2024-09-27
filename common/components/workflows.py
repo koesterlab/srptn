@@ -50,8 +50,8 @@ def workflow_selector() -> Workflow | None:
 
     if url and (tag or branch):
         return Workflow(url=url, tag=tag, branch=branch)
-    else:
-        st.info("Please provide a workflow URL and a tag or branch")
+    st.info("Please provide a workflow URL and a tag or branch")
+    return None
 
 
 def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
@@ -92,6 +92,6 @@ def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
         else:
             config = ace_config_editor(conf_path, wd)
 
-        with open(conf_path, "w") as f:
+        with Path.open(conf_path, "w") as f:
             f.write(config)
     return tmpdir

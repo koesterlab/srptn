@@ -1,50 +1,55 @@
-import pandas as pd
 import polars as pl
 import streamlit as st
-from streamlit_ace import st_ace, THEMES
+from snakedeploy.deploy import WorkflowDeployer
+from streamlit_ace import THEMES, st_ace
 
 from common.components.schemas import infer_schema, update_schema
 from common.components.ui_components import toggle_button
+from common.utils.polars_utils import (
+    enforce_typing,
+    get_type_specific_default,
+    load_data_table,
+)
 
 
-def add_column(data: pd.DataFrame, key: str) -> pd.DataFrame:
+def add_column(data: pl.DataFrame, key: str) -> pl.DataFrame:
     """
     Add a new column to the dataframe.
 
     Parameters
     ----------
-    data : pandas.DataFrame
+    data : polars.DataFrame
         The dataframe to which the column will be added.
     key : str
         The key for the Streamlit session state.
 
     Returns
     -------
-    pandas.DataFrame
+    polars.DataFrame
         The dataframe with the new column added.
     """
     with st.popover("Add"):
         column = st.text_input("Add column", key=f"{key}-add_column_text")
         added = st.button("Add", key=f"{key}-add_column_button")
         if added and column.strip() and column not in data.columns:
-            data[column] = ""
+            data = data.with_columns(pl.Series(column, [""] * len(data)))
     return data
 
 
-def custom_upload(data: pd.DataFrame, key: str) -> pd.DataFrame:
+def custom_upload(data: pl.DataFrame, key: str) -> pl.DataFrame:
     """
     Upload a custom configuration file and replace the dataframe.
 
     Parameters
     ----------
-    data : pandas.DataFrame
+    data : polars.DataFrame
         The dataframe to be replaced with the uploaded file.
     key : str
         The key for the Streamlit session state.
 
     Returns
     -------
-    pandas.DataFrame
+    polars.DataFrame
         The dataframe loaded from the uploaded file.
     """
     with st.popover("Upload"):
@@ -53,19 +58,19 @@ def custom_upload(data: pd.DataFrame, key: str) -> pd.DataFrame:
             type=("xlsx", "tsv", "csv"),
             key=f"{key}-custom_upload_field",
         )
-        replace = st.button("Confirm", key=f"{key}-custom_upload_button")
-        if replace and uploaded_file:
-            data = upload_data_table(uploaded_file)
+        upload = st.button("Confirm", key=f"{key}-custom_upload_button")
+        if upload and uploaded_file:
+            data = load_data_table(uploaded_file, source="upload")
     return data
 
 
-def data_editor(data: pd.DataFrame, key: str):
+def data_editor(data: pl.DataFrame, key: str):
     """
     Provide an interface for editing a dataframe with various options.
 
     Parameters
     ----------
-    data : pandas.DataFrame
+    data : polars.DataFrame
         The dataframe to be edited.
     key : str
         The key for the Streamlit session state.
@@ -98,20 +103,20 @@ def data_editor(data: pd.DataFrame, key: str):
     validate_data(key, data)
 
 
-def data_fill(data: pd.DataFrame, key: str) -> pd.DataFrame:
+def data_fill(data: pl.DataFrame, key: str) -> pl.DataFrame:
     """
     Fill the configuration file with data from the selected dataset.
 
     Parameters
     ----------
-    data : pandas.DataFrame
+    data : polars.DataFrame
         The dataframe to be replaced with the uploaded file.
     key : str
         The key for the Streamlit session state.
 
     Returns
     -------
-    pandas.DataFrame
+    polars.DataFrame
         The dataframe with specified column added
     """
     with st.popover("Fill"):
@@ -137,28 +142,65 @@ def data_fill(data: pd.DataFrame, key: str) -> pd.DataFrame:
                     "To", column, key=f"{key}-fill_column_alias"
                 )
 
-            data_modified = data.copy()
+            data_modified = data.clone()
+            column_to_add = data_selected.select(pl.col(column).alias(column_alias))
 
             if column_alias in data_modified.columns:
-                data_as_list = data_modified[column_alias].tolist()
-                data_as_list.extend(data_selected[column].tolist())
-                data_modified = data_modified.reindex(
-                    range(len(data_as_list)), fill_value=""
-                )
-                data_modified[column_alias] = data_as_list
-            else:
-                if len(data_selected) > len(data_modified):
-                    data_modified = data_modified.reindex(
-                        range(len(data_selected)), fill_value=""
-                    )
-                data_modified[column_alias] = data_selected[column]
+                if (
+                    data_modified.schema[column_alias]
+                    != column_to_add.schema[column_alias]
+                ):
+                    st.warning(f"Column '{column_alias}' has a different type")
+                    try:
+                        column_to_add = column_to_add.cast(
+                            data_modified.schema[column_alias]
+                        )
+                    except pl.InvalidOperationError:
+                        st.error("Failed translation to match types")
+                        st.stop()
 
-            st.data_editor(
+                column_to_add = column_to_add.with_columns(
+                    [
+                        pl.Series(
+                            col,
+                            [get_type_specific_default(data_modified[col].dtype)]
+                            * len(column_to_add),
+                        )
+                        for col in data_modified.columns
+                        if col != column_alias
+                    ]
+                ).select(data_modified.columns)  # Sort column order
+                data_modified = pl.concat([data_modified, column_to_add])
+            else:
+                padding = len(data_selected) - len(data_modified)
+                if padding > 0:
+                    padding_df = pl.DataFrame(
+                        {
+                            col: [get_type_specific_default(data_modified[col].dtype)]
+                            * padding
+                            for col in data_modified.columns
+                        }
+                    )
+                    data_modified = pl.concat([data_modified, padding_df])
+                elif padding < 0:
+                    padding_df = pl.DataFrame(
+                        {
+                            column_alias: [
+                                get_type_specific_default(
+                                    column_to_add[column_alias].dtype
+                                )
+                            ]
+                            * -padding
+                        }
+                    )
+                    column_to_add = pl.concat([column_to_add, padding_df])
+
+                data_modified = data_modified.with_columns(column_to_add)
+
+            st.dataframe(
                 data_modified,
                 height=225,
                 use_container_width=True,
-                disabled=True,
-                num_rows="fixed",
                 key=f"{key}-fill_preview_window",
             )
             replace = st.button("Confirm", key=f"{key}-fill_button")
@@ -167,7 +209,9 @@ def data_fill(data: pd.DataFrame, key: str) -> pd.DataFrame:
     return data
 
 
-def data_selector(label: str, value: str, key: str, wd) -> tuple[str, bool]:
+def data_selector(
+    label: str, value: str, key: str, wd: WorkflowDeployer
+) -> tuple[str, bool]:
     """
     Create a data selector widget in Streamlit.
 
@@ -209,40 +253,47 @@ def data_selector(label: str, value: str, key: str, wd) -> tuple[str, bool]:
         # In preparation for new data storing that will allow hotswap of data
         if data_schema_key in st.session_state:
             st.session_state.pop(data_schema_key)
-        st.session_state[data_key] = get_data_table(input_value)
+
+        st.session_state[data_key] = load_data_table(
+            st.session_state["workflow-config-dir_path"] / input_value
+        )
         st.session_state[data_key_changed] = input_value
 
-    if not isinstance(st.session_state[data_key], pd.DataFrame):
+    if not isinstance(st.session_state[data_key], pl.DataFrame):
         st.error(f'File {value.split("/")[-1]} not found!')
         return input_value, False
 
     if data_schema_key not in st.session_state:
         data_schema = wd.get_json_schema(value.split("/")[-1].split(".")[0])
+        data_config = st.session_state[data_key].to_dict(as_series=False)
         if data_schema:
-            final_schema = update_schema(data_schema, st.session_state[data_key])
+            final_schema = update_schema(data_schema, data_config)
         else:
-            final_schema = infer_schema(st.session_state[data_key])
+            final_schema = infer_schema(data_config)
         st.session_state[data_schema_key] = final_schema
+        st.session_state[data_key] = enforce_typing(
+            st.session_state[data_key], final_schema
+        )
 
     with col2:
         show_data = toggle_button("Edit", key)
     return input_value, show_data
 
 
-def delete_column(data: pd.DataFrame, key: str) -> pd.DataFrame:
+def delete_column(data: pl.DataFrame, key: str) -> pl.DataFrame:
     """
     Delete a column from the dataframe.
 
     Parameters
     ----------
-    data : pandas.DataFrame
+    data : polars.DataFrame
         The dataframe from which the column will be deleted.
     key : str
         The key for the Streamlit session state.
 
     Returns
     -------
-    pandas.DataFrame
+    polars.DataFrame
         The dataframe with the specified column deleted.
     """
     with st.popover("Remove"):
@@ -253,34 +304,29 @@ def delete_column(data: pd.DataFrame, key: str) -> pd.DataFrame:
         )
         deleted = st.button("Delete", key=f"{key}-delete_column_button")
         if deleted:
-            data = data.drop(columns=selected)
+            data = data.drop(selected)
     return data
 
 
-def execute_custom_code(
-    data: pd.DataFrame, user_code: str, dataframe_type: str
-) -> pd.DataFrame:
+def execute_custom_code(data: pl.DataFrame, user_code: str) -> pl.DataFrame:
     """
     Execute custom code provided by the user on the dataframe.
 
     Parameters
     ----------
-    data : pd.DataFrame
+    data : polars.DataFrame
         The dataframe on which the custom code will be executed.
     user_code : str
         The custom code to execute on the dataframe.
-    dataframe_type : str
-        The type of dataframe accessible on the frontend.
 
     Returns
     -------
-    pandas.DataFrame
+    polars.DataFrame
         The dataframe after the custom code has been executed.
 
     Notes
     -----
     This function uses Python's `exec` to run the custom code in a local scope.
-    The dataframes can either be in Pandas or Polars.
     """
     local_vars = {}
     for key, value in [
@@ -289,73 +335,35 @@ def execute_custom_code(
         if (
             key.startswith("workflow-config-")
             and key.endswith("-data")
-            and isinstance(value, pd.DataFrame)
+            and isinstance(value, pl.DataFrame)
             and not value.equals(data)
         )
     ]:
         local_var_key = key.split("-")[2].split(".")[-1]
-        if dataframe_type == "Polars":
-            local_vars[local_var_key] = pl.from_pandas(value)
-        if dataframe_type == "Pandas":
-            local_vars[local_var_key] = value
-    if dataframe_type == "Polars":
-        data = pl.from_pandas(data)
+        local_vars[local_var_key] = value
+
     local_vars["df"] = data
     exec(user_code, {}, local_vars)
     data = local_vars.get("df", data)
-    if not isinstance(data, pd.DataFrame):
-        data = data.to_pandas()
+    if not isinstance(data, pl.DataFrame):
+        st.error("The returned object is not a Polars DataFrame.")
     return data
 
 
-def get_data_table(file_name: str) -> pd.DataFrame:
-    """
-    Load a data table from a file based on its extension.
-
-    Parameters
-    ----------
-    file_name : str
-        The name of the file to be loaded.
-
-    Returns
-    -------
-    pandas.DataFrame or None
-        The loaded data table as a pandas DataFrame, or None if the file is not found.
-
-    Notes
-    -----
-    This function reads a file from the directory specified in the Streamlit session state and loads it into a
-    pandas DataFrame. The function supports `.tsv`, `.csv`, and `.xlsx` file formats.
-    """
-    table_path = st.session_state["workflow-config-dir_path"] / file_name
-    try:
-        match file_name:
-            case file_name if file_name.endswith(".tsv"):
-                data = pd.read_csv(table_path, sep="\t")
-            case file_name if file_name.endswith(".csv"):
-                data = pd.read_csv(table_path)
-            case file_name if file_name.endswith(".xlsx"):
-                data = pd.read_excel(table_path)
-    except FileNotFoundError:
-        st.error(f"File {file_name} does not exist")
-        return None
-    return data
-
-
-def process_user_code(data: pd.DataFrame, key: str) -> pd.DataFrame:
+def process_user_code(data: pl.DataFrame, key: str) -> pl.DataFrame:
     """
     Modify the dataframe using user-provided Python code.
 
     Parameters
     ----------
-    data : pandas.DataFrame
+    data : polars.DataFrame
         The dataframe to be modified by the user's custom code.
     key : str
         The key for the Streamlit session state.
 
     Returns
     -------
-    pandas.DataFrame
+    polars.DataFrame
         The dataframe after applying the user's custom modifications.
 
     Notes
@@ -366,20 +374,8 @@ def process_user_code(data: pd.DataFrame, key: str) -> pd.DataFrame:
     with st.session_state[key + "-placeholders"][1].expander(
         "Advanced table modification", expanded=True
     ):
-        dataframe_type = st.radio(
-            "Dataframe type",
-            options=["Pandas", "Polars"],
-            horizontal=True,
-            key=f"{key}-dataframetype",
-        )
+        acestring = "# The table is available as df: pl.DataFrame\n# All other tables are accessible through their file name\n"
 
-        if dataframe_type == "Polars":
-            acestring = "# The table is available as df: pl.DataFrame\n"
-        else:
-            acestring = "# The table is available as df: pd.DataFrame\n"
-        acestring = (
-            acestring + "# All other tables are accessible through their file name\n"
-        )
         c1, c2 = st.columns([3.25, 1])
         with c1:
             user_code = st_ace(
@@ -408,35 +404,33 @@ def process_user_code(data: pd.DataFrame, key: str) -> pd.DataFrame:
             disabled=not no_import,
         )
         if preview:
-            preview_data = data.copy()
-            preview_data = execute_custom_code(preview_data, user_code, dataframe_type)
-            st.data_editor(
+            preview_data = data.clone()
+            preview_data = execute_custom_code(preview_data, user_code)
+            st.dataframe(
                 preview_data,
                 use_container_width=True,
-                disabled=True,
-                num_rows="fixed",
                 key=f"{key}-advanced_manipulation_preview_window",
             )
             validate_data(key, preview_data)
     if apply:
-        data = execute_custom_code(data, user_code, dataframe_type)
+        data = execute_custom_code(data, user_code)
     return data
 
 
-def rename_column(data: pd.DataFrame, key: str) -> pd.DataFrame:
+def rename_column(data: pl.DataFrame, key: str) -> pl.DataFrame:
     """
     Rename a column in the dataframe.
 
     Parameters
     ----------
-    data : pandas.DataFrame
+    data : polars.DataFrame
         The dataframe containing the column to be renamed.
     key : str
         The key for the Streamlit session state.
 
     Returns
     -------
-    pandas.DataFrame
+    polars.DataFrame
         The dataframe with the renamed column.
     """
     with st.popover("Rename"):
@@ -450,7 +444,7 @@ def rename_column(data: pd.DataFrame, key: str) -> pd.DataFrame:
         )
         rename = st.button("Rename", key=f"{key}-rename_column_button")
         if rename and renamed.strip():
-            data = data.rename(columns={selected: renamed})
+            data = data.rename({selected: renamed})
     return data
 
 
@@ -483,16 +477,13 @@ def modify_schema(schema: dict, key: str) -> dict:
         if rename and renamed.strip():
             schema["properties"][renamed] = schema["properties"].pop(selected)
             if selected in schema["required"]:
-                schema["required"] = list(
-                    map(
-                        lambda x: x.replace(selected, renamed),
-                        schema["required"],
-                    )
-                )
+                schema["required"] = [
+                    x.replace(selected, renamed) for x in schema["required"]
+                ]
     return schema
 
 
-def update_data(key):
+def update_data(key: str):
     """
     Update the data in the session state based on user edits.
 
@@ -504,47 +495,20 @@ def update_data(key):
     editor = st.session_state[key + "-editor"]["edited_rows"]
     data = st.session_state[key + "-data"]
     if editor:
-        coldictkey = list(editor.keys())[0]
-        colname = list(editor[coldictkey].keys())[0]
-        data.loc[coldictkey, colname] = editor[coldictkey][colname]
+        for idx, row_edits in editor.items():
+            for colname, new_value in row_edits.items():
+                data = data.with_columns(
+                    pl.when(pl.arange(0, data.height) == idx)
+                    .then(pl.lit(new_value))
+                    .otherwise(pl.col(colname))
+                    .alias(colname)
+                )
         st.session_state[key + "-data"] = data
     else:
         st.warning("No edits detected in the data editor.")
 
 
-def upload_data_table(uploaded_file) -> pd.DataFrame:
-    """
-    Load a data table from an uploaded file based on its MIME type.
-
-    Parameters
-    ----------
-    uploaded_file : UploadedFile
-        The file uploaded by the user via Streamlit's file uploader.
-
-    Returns
-    -------
-    pandas.DataFrame
-        The loaded data table as a pandas DataFrame.
-
-    Notes
-    -----
-    This function reads an uploaded file and loads it into a pandas DataFrame.
-    The function supports text/tab-separated-values (`.tsv`), text/csv (`.csv`),
-    and Excel (`.xlsx`) file formats.
-    """
-    match uploaded_file:
-        case uploaded_file if uploaded_file.type == "text/tab-separated-values":
-            data = pd.read_csv(uploaded_file, sep="\t")
-        case uploaded_file if uploaded_file.type == "text/csv":
-            data = pd.read_csv(uploaded_file)
-        case (
-            uploaded_file
-        ) if uploaded_file.type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-            data = pd.read_excel(uploaded_file)
-    return data
-
-
-def validate_data(key: str, data=None):
+def validate_data(key: str, data: pl.DataFrame | None = None):
     """
     Validate data against a schema.
 
@@ -552,7 +516,7 @@ def validate_data(key: str, data=None):
     ----------
     key : str
         The key for the Streamlit session state.
-    data : pd.DataFrame, optional
+    data : polars.DataFrame, optional
         The data to be validated. If not provided, it will be fetched from the session state.
 
     Notes
@@ -560,36 +524,44 @@ def validate_data(key: str, data=None):
     This function checks if the data conforms to the required schema and highlights errors.
     """
     st.session_state["workflow-config-form-valid"][key] = True
-    if not isinstance(data, pd.DataFrame):
+    if not isinstance(data, pl.DataFrame):
         data = st.session_state[key + "-data"]
-    data = data.to_dict(orient="list")
+    data = data.to_dict(as_series=False)
     schema = st.session_state[key + "-schema"]
-    for field in schema.get("properties"):
-        required = schema.get("required")
+    required = schema.get("required")
+    for field, field_info in schema.get("properties", {}).items():
         column = data.get(field)
         if required and field in required and not column:
             st.session_state["workflow-config-form-valid"][key] = False
             st.error(f'Column "{field}" is required but not found.')
-        elif column:
-            rows = []
+            continue
+
+        if column:
+            invalid_rows = []
             for idx, value in enumerate(column):
                 valid = True
-                match schema["properties"][field]["type"]:
+                match field_info["type"]:
                     case typing if typing == "boolean":
                         if not any(str(value).lower() in ("true", "false", "0", "1")):
                             valid = False
                     case typing if typing == "string":
                         # no isinstance as the value might be an int or float as string
-                        if not isinstance(value, str) or not value.strip():
+                        if not str(value).strip():
                             valid = False
                     case typing if typing == "number":
-                        if not isinstance(value, (int, float)):
+                        if not isinstance(value, (int | float)):
                             valid = False
                 if not valid:
-                    rows.append(str(idx + 1))
-            if rows:
-                st.session_state["workflow-config-form-valid"][key] = False
-                rowstring = "s " + ", ".join(rows) if len(rows) > 1 else " " + rows[0]
-                st.error(
-                    f'Column "{field}" expects a "{schema["properties"][field]["type"]}" on row{rowstring}.'
+                    invalid_rows.append(str(idx + 1))
+            if invalid_rows:
+                rowstring = (
+                    "s " + ", ".join(invalid_rows)
+                    if len(invalid_rows) > 1
+                    else " " + invalid_rows[0]
                 )
+                msg = f'Column "{field}" expects a "{schema["properties"][field]["type"]}" on row{rowstring}.'
+                if field in required:
+                    st.session_state["workflow-config-form-valid"][key] = False
+                    st.error(msg)
+                else:
+                    st.warning(msg)

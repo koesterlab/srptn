@@ -3,7 +3,8 @@ from pathlib import Path
 
 import streamlit as st
 import yaml
-from pandas import DataFrame
+from polars import DataFrame
+from snakedeploy.deploy import WorkflowDeployer
 from streamlit_ace import st_ace
 from streamlit_tags import st_tags
 
@@ -11,7 +12,7 @@ from common.components.data_editor import data_editor, data_selector
 from common.components.schemas import get_property_type, infer_schema, update_schema
 
 
-def ace_config_editor(conf_path: Path, wd) -> str:
+def ace_config_editor(conf_path: Path, wd: WorkflowDeployer) -> str:
     """
     Edit a configuration file in the Streamlit app with st_ace.
 
@@ -40,7 +41,7 @@ def ace_config_editor(conf_path: Path, wd) -> str:
     return config
 
 
-def config_editor(conf_path: Path, wd) -> str:
+def config_editor(conf_path: Path, wd: WorkflowDeployer) -> str:
     """
     Edit a configuration file in the Streamlit app.
 
@@ -59,12 +60,15 @@ def config_editor(conf_path: Path, wd) -> str:
     config, final_schema = load_config_and_schema(conf_path, wd)
     st.session_state["workflow-config-form-valid"] = {}
     config = create_form(config, final_schema, wd, "workflow-config-")
-    config = yaml.dump(config, sort_keys=False)
-    return config
+    return yaml.dump(config, sort_keys=False)
 
 
 def create_form(
-    config: dict, schema: dict, wd, parent_key: str = "", ace_editor: bool = False
+    config: dict,
+    schema: dict,
+    wd: WorkflowDeployer,
+    parent_key: str = "",
+    ace_editor: bool = False,
 ) -> dict:
     """
     Create a pseudo Streamlit form based on a config dictionary and schema.
@@ -117,15 +121,17 @@ def create_form(
         for tab, (key, value) in enumerate(new_tabs):
             updated_parent_key = update_key(parent_key, key)
             if prop_key == "patternProperties":
-                if not re.search(list(schema[prop_key].keys())[0], key):
+                if not re.search(next(iter(schema[prop_key])), key):
                     st.error("Field name does not match schema.")
-                key = list(schema[prop_key].keys())[0]
+                updated_key = next(iter(schema[prop_key]))
+            else:
+                updated_key = key
             if not ace_editor:
                 with tabs[tab]:
-                    new_schema = schema[prop_key].get(key)
+                    new_schema = schema[prop_key].get(updated_key)
                     create_form(value, new_schema, wd, updated_parent_key)
             else:
-                new_schema = schema[prop_key].get(key)
+                new_schema = schema[prop_key].get(updated_key)
                 create_form(value, new_schema, wd, updated_parent_key, ace_editor=True)
     return config
 
@@ -137,7 +143,7 @@ def get_input_element(
     input_dict: dict,
     key: str,
     required: bool,
-    wd,
+    wd: WorkflowDeployer,
     ace_editor: bool,
 ) -> any:
     """
@@ -238,7 +244,7 @@ def get_input_element(
     return input_value
 
 
-def load_config_and_schema(conf_path, wd) -> tuple[dict, dict]:
+def load_config_and_schema(conf_path: Path, wd: WorkflowDeployer) -> tuple[dict, dict]:
     """
     Load configuration and schema.
 
@@ -284,13 +290,13 @@ def load_yaml(config: str) -> dict:
     """
     try:
         config = yaml.load(config, Loader=yaml.SafeLoader)
-        assert config is not None
-        return config
+        if config is not None:
+            return config
+        st.error("Configuration File is empty")
+        st.stop()
+
     except yaml.YAMLError as e:
         st.error(f"Error parsing config YAML: {e}")
-        st.stop()
-    except AssertionError:
-        st.error("Configuration File is empty")
         st.stop()
 
 
@@ -331,7 +337,7 @@ def update_key(parent_key: str, new_key: str) -> str:
     str
         The updated key.
     """
-    return ".".join((parent_key, new_key)) if parent_key != "" else new_key
+    return f"{parent_key}.{new_key}" if parent_key != "" else new_key
 
 
 def validate_input(value: any, input_type: str) -> bool:
@@ -360,6 +366,6 @@ def validate_input(value: any, input_type: str) -> bool:
         case typing if typing == "number":
             if "e" in str(value).lower():
                 return True
-            if not isinstance(value, (int, float)):
+            if not isinstance(value, (int | float)):
                 return False
     return True

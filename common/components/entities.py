@@ -1,12 +1,9 @@
-from typing import List, Type
-from common.data import DataStore
-
 import streamlit as st
 
-from common.data import Entity
+from common.data import DataStore, Entity
 
 
-def entity_browser(data_store: DataStore, entity_type: Type[Entity], owner: str):
+def entity_browser(data_store: DataStore, entity_type: type[Entity], owner: str):
     search_term = st.text_input("Search")
     only_owned = st.checkbox("only owned")
 
@@ -24,8 +21,8 @@ def entity_browser(data_store: DataStore, entity_type: Type[Entity], owner: str)
 
 
 def entity_selector(
-    data_store: DataStore, entity_type: Type[Entity], key: str
-) -> List[Entity]:
+    data_store: DataStore, entity_type: type[Entity], key: str
+) -> list[Entity]:
     entities = data_store.entities(entity_type=entity_type)
 
     if entities:
@@ -36,6 +33,5 @@ def entity_selector(
             entity.address.name: entity.sheet for entity in entities
         }
         return entities
-    else:
-        st.warning(f"No {entity_type.__name__.lower()} found")
-        return []
+    st.warning(f"No {entity_type.__name__.lower()} found")
+    return []

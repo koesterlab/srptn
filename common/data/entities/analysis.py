@@ -1,11 +1,9 @@
 from dataclasses import dataclass
 from pathlib import Path
-from tempfile import TemporaryDirectory
-from typing import Any, Dict, List
 
-import pandas as pd
-import yaml
+import polars as pl
 import streamlit as st
+import yaml
 
 from common.data import Address, DataStore, Entity, FileType
 from common.data.entities.dataset import Dataset
@@ -14,7 +12,7 @@ from common.data.entities.workflow import Workflow
 
 @dataclass
 class Analysis(Entity):
-    datasets: List[Dataset]
+    datasets: list[Dataset]
     workflow: Workflow
 
     def show(self):
@@ -25,11 +23,11 @@ class Analysis(Entity):
     def load(cls, data_store: DataStore, address: Address):
         desc = data_store.load_desc(address)
         sheets = {
-            f.name: pd.read_parquet(
-                data_store.load_file(address, f.name, FileType.DATA)
+            f["name"]: pl.read_parquet(
+                data_store.load_file(address, f["name"], FileType.DATA)
             )
-            for f in data_store.list_files(address, FileType.META).itertuples()
-            if f.endswith(".parquet")
+            for f in data_store.list_files(address, FileType.META).iter_rows(named=True)
+            if f["name"].endswith(".parquet")
         }
         if data_store.has_file(address, "config.yaml", FileType.META):
             config = yaml.load(
@@ -48,7 +46,7 @@ class Analysis(Entity):
             if path_obj.is_file():
                 data_store.store_file(
                     self.address,
-                    open(path_obj, "br"),
+                    Path.open(path_obj, "br"),
                     str(path_obj.relative_to(tmp_deployment_path)),
                     FileType.DATA,
                 )

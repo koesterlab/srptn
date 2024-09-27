@@ -1,3 +1,4 @@
+name: srptn
 channels:
   - conda-forge
   - bioconda
@@ -6,7 +7,6 @@ dependencies:
   - python=3.11
   - streamlit=1.38.0
   - humanfriendly
-  - pandas
   - polars
   - pytest=8.2.1
   - snakedeploy >=0.10,<1.0

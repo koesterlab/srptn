@@ -1,5 +1,7 @@
-import pandas as pd
 import re
+from math import isnan
+
+import polars as pl
 import streamlit as st
 
 
@@ -21,8 +23,16 @@ def get_nonan_index(value: list) -> int | None:
     -----
     This function iterates over the list to find the first value that is not NaN.
     """
+
+    def isna(value):
+        if not value:
+            return True
+        if isinstance(value, float) and isnan(value):
+            return True
+        return False
+
     for idx, v in enumerate(value):
-        if not pd.isna(v):
+        if not isna(v):
             return idx
     return None
 
@@ -44,8 +54,11 @@ def get_property_type(schema: dict) -> str | None:
     """
     if "properties" in schema:
         return "properties"
-    elif "patternProperties" in schema:
+    if "patternProperties" in schema:
         return "patternProperties"
+    raise ValueError(
+        "Wrong schema structure, please use either properties or patternProperties"
+    )
     return None
 
 
@@ -95,17 +108,17 @@ def infer_type(value) -> dict:
     This function determines the JSON schema type based on the Python type of the input value.
     """
     match value:
-        case value if isinstance(value, pd.Series):
-            id = get_nonan_index(value)
+        case value if isinstance(value, pl.Series):
+            idx = get_nonan_index(value)
             value_schema = {
                 "type": "array",
-                "items": infer_type(value[id]) if id else {"type": "missing"},
+                "items": infer_type(value[idx]) if idx else {"type": "missing"},
             }
         case list(value):
-            id = get_nonan_index(value)
+            idx = get_nonan_index(value)
             value_schema = {
                 "type": "array",
-                "items": infer_type(value[id]) if id else {"type": "missing"},
+                "items": infer_type(value[idx]) if idx else {"type": "missing"},
             }
         case bool(value):
             value_schema = {"type": "boolean"}
@@ -146,17 +159,19 @@ def update_schema(schema: dict, config: dict) -> dict:
     for key, value in config.items():
         if isinstance(value, dict):  # check for leaf nodes = endpoints
             items.append((key, value))
-        elif key not in schema[prop_key].keys():
+        elif key not in schema[prop_key]:
             schema[prop_key][key] = infer_type(value)
     if items:
         for key, value in items:
             if prop_key == "patternProperties":
-                if not re.search(list(schema[prop_key].keys())[0], key):
+                if not re.search(next(iter(schema[prop_key])), key):
                     st.error("Field name does not match schema.")
-                key = list(schema[prop_key].keys())[0]
-            new_schema = schema[prop_key].get(key)
+                updated_key = next(iter(schema[prop_key]))
+            else:
+                updated_key = key
+            new_schema = schema[prop_key].get(updated_key)
             if new_schema is None:
-                schema[prop_key][key] = infer_schema(config[key])
-                new_schema = schema[prop_key][key]
+                schema[prop_key][updated_key] = infer_schema(config[updated_key])
+                new_schema = schema[prop_key][updated_key]
             update_schema(new_schema, value)
     return schema

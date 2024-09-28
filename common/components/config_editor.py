@@ -205,7 +205,7 @@ def get_input_element(
                     st.session_state[key + "-placeholders"] = [
                         st.empty() for _ in range(3)
                     ]
-                    if show_data & isinstance(st.session_state[data_key], DataFrame):
+                    if show_data and isinstance(st.session_state[data_key], DataFrame):
                         data_editor(st.session_state[data_key], key)
             case input_type if input_type == "integer":
                 input_value = st.number_input(label=label, value=value, key=key)
@@ -366,6 +366,6 @@ def validate_input(value: any, input_type: str) -> bool:
         case typing if typing == "number":
             if "e" in str(value).lower():
                 return True
-            if not isinstance(value, (int | float)):
+            if not isinstance(value, (int, float)):
                 return False
     return True

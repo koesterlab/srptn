@@ -2,6 +2,7 @@ from pathlib import Path
 
 import polars as pl
 import streamlit as st
+from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 
 def enforce_typing(data: pl.DataFrame, schema: dict) -> pl.DataFrame:
@@ -70,9 +71,7 @@ def get_type_specific_default(dtype: pl.datatypes.DataType):
     return None  # Default case of polars for missing values
 
 
-def load_data_table(
-    file: st.runtime.uploaded_file_manager.UploadedFile | Path, source: str = "file"
-) -> pl.DataFrame:
+def load_data_table(file: UploadedFile | Path, source: str = "file") -> pl.DataFrame:
     """
     Load a data table from an uploaded file or a file path based on the source.
 
@@ -89,12 +88,12 @@ def load_data_table(
         The loaded data table as a Polars DataFrame.
     """
 
-    def read_data(file, mime_type):
-        if mime_type in ["text/tab-separated-values", ".tsv"]:
+    def read_data(file, file_type):
+        if file_type in ["text/tab-separated-values", ".tsv"]:
             return pl.read_csv(file, separator="\t")
-        if mime_type in ["text/csv", ".csv"]:
+        if file_type in ["text/csv", ".csv"]:
             return pl.read_csv(file)
-        if mime_type in [
+        if file_type in [
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             ".xlsx",
         ]:
@@ -104,12 +103,12 @@ def load_data_table(
         )
         st.stop()
 
-    mime_type = file.type if source == "upload" else file.suffix
+    file_type = file.type if source == "upload" else file.suffix
     if source == "upload":
-        return read_data(file, mime_type)
+        return read_data(file, file_type)
     else:
         try:
-            return read_data(file, mime_type)
+            return read_data(file, file_type)
         except FileNotFoundError:
             st.error(f"File {file.name} does not exist")
             return None

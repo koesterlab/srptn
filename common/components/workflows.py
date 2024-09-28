@@ -92,6 +92,6 @@ def workflow_editor(workflow: Workflow) -> tempfile.TemporaryDirectory:
         else:
             config = ace_config_editor(conf_path, wd)
 
-        with Path.open(conf_path, "w") as f:
+        with conf_path.open("w") as f:
             f.write(config)
     return tmpdir

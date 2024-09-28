@@ -497,12 +497,7 @@ def update_data(key: str):
     if editor:
         for idx, row_edits in editor.items():
             for colname, new_value in row_edits.items():
-                data = data.with_columns(
-                    pl.when(pl.arange(0, data.height) == idx)
-                    .then(pl.lit(new_value))
-                    .otherwise(pl.col(colname))
-                    .alias(colname)
-                )
+                data[idx, colname] = new_value
         st.session_state[key + "-data"] = data
     else:
         st.warning("No edits detected in the data editor.")

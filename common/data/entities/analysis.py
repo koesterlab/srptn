@@ -46,7 +46,7 @@ class Analysis(Entity):
             if path_obj.is_file():
                 data_store.store_file(
                     self.address,
-                    Path.open(path_obj, "br"),
+                    path_obj.open("br"),
                     str(path_obj.relative_to(tmp_deployment_path)),
                     FileType.DATA,
                 )

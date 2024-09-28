@@ -29,20 +29,13 @@ sheet = st.file_uploader("Sample Sheet") if multi_file else None
 if sheet:
     sheet = load_data_table(sheet, "upload")
 
-    sheet = sheet.select(
-        [
-            pl.col(name).str.strip_chars()
-            if sheet[name].dtype == pl.Utf8
-            else pl.col(name)
-            for name in sheet.columns
-        ]
-    )
+    sheet = sheet.with_columns([pl.col(pl.Utf8).str.strip_chars()])
 
     st.text("Sample sheet")
     st.dataframe(sheet)
 
     for f in files:
-        if not any(f.name in col.to_numpy() for _, col in sheet.to_dict().items()):
+        if not sheet.select(pl.any_horizontal((pl.all() == f.name).any())).item():
             st.error(f"Uploaded file {f.name} not found in sample sheet")
             st.stop()
 

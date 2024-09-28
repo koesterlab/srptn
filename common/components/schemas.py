@@ -25,11 +25,7 @@ def get_nonan_index(value: list) -> int | None:
     """
 
     def isna(value):
-        if not value:
-            return True
-        if isinstance(value, float) and isnan(value):
-            return True
-        return False
+        return not value or (isinstance(value, float) and isnan(value))
 
     for idx, v in enumerate(value):
         if not isna(v):
@@ -114,7 +110,7 @@ def infer_type(value) -> dict:
                 "type": "array",
                 "items": infer_type(value[idx]) if idx else {"type": "missing"},
             }
-        case list(value):
+        case value if isinstance(value, list):
             idx = get_nonan_index(value)
             value_schema = {
                 "type": "array",

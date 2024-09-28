@@ -1,16 +1,16 @@
+import io
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-import io
-from typing import List, Optional, Type
-import pandas as pd
+
+import polars as pl
 
 
 @dataclass
 class Address:
     owner: str
-    entity_type: Type["Entity"]
-    categories: List[str]
+    entity_type: type["Entity"]
+    categories: list[str]
     name: str
 
     @classmethod
@@ -59,7 +59,7 @@ class DataStore(ABC):
     def clean(self, address: Address): ...
 
     @abstractmethod
-    def load_sheet(self, address: Address, sheet_name: str) -> pd.DataFrame: ...
+    def load_sheet(self, address: Address, sheet_name: str) -> pl.DataFrame: ...
 
     @abstractmethod
     def has_sheet(self, address: Address, sheet_name: str) -> bool: ...
@@ -78,7 +78,7 @@ class DataStore(ABC):
     ) -> bool: ...
 
     @abstractmethod
-    def list_files(self, address: Address, file_type: FileType) -> pd.DataFrame: ...
+    def list_files(self, address: Address, file_type: FileType) -> pl.DataFrame: ...
 
     @abstractmethod
     def store_file(
@@ -89,15 +89,15 @@ class DataStore(ABC):
     def store_desc(self, address: Address, desc: str): ...
 
     @abstractmethod
-    def store_sheet(self, address: Address, sheet: pd.DataFrame, sheet_name: str): ...
+    def store_sheet(self, address: Address, sheet: pl.DataFrame, sheet_name: str): ...
 
     @abstractmethod
     def entities(
         self,
-        entity_type: Type[Entity],
-        search_term: Optional[str] = None,
-        only_owned_by: Optional[str] = None,
-    ) -> List[Entity]: ...
+        entity_type: type[Entity],
+        search_term: str | None = None,
+        only_owned_by: str | None = None,
+    ) -> list[Entity]: ...
 
     @abstractmethod
     def has_entity(self, address: Address): ...

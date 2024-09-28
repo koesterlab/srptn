@@ -1,21 +1,19 @@
-from dataclasses import dataclass
 import io
-from typing import List, Optional
+from dataclasses import dataclass
 
-import pandas as pd
-from common.components.files import file_browser
-from common.data import DataStore, FileType
+import polars as pl
 import streamlit as st
 
-from common.data import Address, Entity, DataStore
+from common.components.files import file_browser
+from common.data import Address, DataStore, Entity, FileType
 
 
 @dataclass
 class Dataset(Entity):
-    sheet: Optional[pd.DataFrame]
-    data_files: Optional[List[io.BytesIO]] = None
-    meta_files: Optional[List[io.BytesIO]] = None
-    _data_store: Optional[DataStore] = None
+    sheet: pl.DataFrame | None
+    data_files: list[io.BytesIO] | None = None
+    meta_files: list[io.BytesIO] | None = None
+    _data_store: DataStore | None = None
 
     def show(self):
         st.header(self.address, divider=True)
@@ -25,7 +23,7 @@ class Dataset(Entity):
             st.dataframe(self.sheet)
 
         meta_files = self.list_files(FileType.META)
-        if not meta_files.empty:
+        if not meta_files.is_empty:
             st.subheader("Meta Files")
             for name in meta_files["name"]:
                 st.download_button(

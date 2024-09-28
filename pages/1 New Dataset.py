@@ -1,11 +1,11 @@
-from pathlib import Path
-import pandas as pd
-from common.components.descriptions import desc_editor
-from common.components.categories import category_editor
-from common.data import Address
-from common.data.fs import FSDataStore
-from common.data.entities.dataset import Dataset
+import polars as pl
 import streamlit as st
+from common.components.categories import category_editor
+from common.components.descriptions import desc_editor
+from common.data import Address
+from common.data.entities.dataset import Dataset
+from common.data.fs import FSDataStore
+from common.utils.polars_utils import load_data_table
 
 owner = "koesterlab"
 data_store = FSDataStore()
@@ -24,30 +24,18 @@ files = st.file_uploader("Files", accept_multiple_files=True)
 
 multi_file = len(files) > 1
 
-if multi_file:
-    sheet = st.file_uploader("Sample Sheet")
-else:
-    sheet = None
+sheet = st.file_uploader("Sample Sheet") if multi_file else None
 
 if sheet:
-    if sheet.name.endswith(".xlsx"):
-        sheet = pd.read_excel(sheet, dtype=str)
-    elif sheet.name.endswith(".csv"):
-        sheet = pd.read_csv(sheet, sep=",", dtype=str)
-    elif sheet.name.endswith(".tsv"):
-        sheet = pd.read_csv(sheet, sep="\t", dtype=str)
-    else:
-        st.error(f"Unsupported file format for sample sheet: {Path(sheet.name).suffix}")
-        st.stop()
+    sheet = load_data_table(sheet, "upload")
 
-    for name, col in sheet.items():
-        sheet[name] = col.str.strip()
+    sheet = sheet.with_columns([pl.col(pl.Utf8).str.strip_chars()])
 
     st.text("Sample sheet")
     st.dataframe(sheet)
 
     for f in files:
-        if not any(f.name in col.values for _, col in sheet.items()):
+        if not sheet.select(pl.any_horizontal((pl.all() == f.name).any())).item():
             st.error(f"Uploaded file {f.name} not found in sample sheet")
             st.stop()
 

@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import streamlit as st
-
 from common.components.categories import category_editor
 from common.components.descriptions import desc_editor
 from common.components.entities import entity_selector

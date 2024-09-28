@@ -1,11 +1,11 @@
-from dataclasses import dataclass
 import io
-from pathlib import Path
 import shutil
-from typing import List, Optional, Type
-from common.data import Address, Entity, FileType
-from common.data import DataStore
-import pandas as pd
+from dataclasses import dataclass
+from pathlib import Path
+
+import polars as pl
+
+from common.data import Address, DataStore, Entity, FileType
 
 
 @dataclass(slots=True)
@@ -17,8 +17,8 @@ class FSDataStore(DataStore):
         self.meta_path(address).unlink(missing_ok=True)
         self.files_path(address, FileType.DATA).unlink(missing_ok=True)
 
-    def load_sheet(self, address: Address, sheet_name: str) -> pd.DataFrame:
-        return pd.read_parquet(self.sheet_path(address, sheet_name))
+    def load_sheet(self, address: Address, sheet_name: str) -> pl.DataFrame:
+        return pl.read_parquet(self.sheet_path(address, sheet_name))
 
     def has_sheet(self, address: Address, sheet_name: str) -> bool:
         return self.sheet_path(address, sheet_name).exists()
@@ -34,19 +34,19 @@ class FSDataStore(DataStore):
     def has_file(self, address: Address, file_path: str, file_type: FileType) -> bool:
         return (self.files_path(address, file_type) / file_path).exists()
 
-    def list_files(self, address: Address, file_type: FileType) -> pd.DataFrame:
+    def list_files(self, address: Address, file_type: FileType) -> pl.DataFrame:
         files_dir = self.files_path(address, file_type)
         if files_dir.exists():
-            return pd.DataFrame(
+            return pl.DataFrame(
                 [
                     (f.name, f.stat().st_size)
                     for f in files_dir.iterdir()
                     if f.is_file()
                 ],
-                columns=["name", "size"],
+                schema=["name", "size"],
+                orient="row",
             )
-        else:
-            return pd.DataFrame(columns=["name", "size"])
+        return pl.DataFrame(schema=["name", "size"])
 
     def store_file(
         self, address: Address, file: io.IOBase, file_path: str, file_type: FileType
@@ -55,9 +55,9 @@ class FSDataStore(DataStore):
         file_path = folder / file_path
         file_path.parent.mkdir(exist_ok=True, parents=True)
         with (file_path).open("wb") as f:
-            #import pdb
+            # import pdb
 
-            #pdb.set_trace()
+            # pdb.set_trace()
             shutil.copyfileobj(file, f)
 
     def store_desc(self, address: Address, desc: str):
@@ -65,17 +65,17 @@ class FSDataStore(DataStore):
         desc_path.parent.mkdir(exist_ok=True, parents=True)
         desc_path.write_text(desc)
 
-    def store_sheet(self, address: Address, sheet: pd.DataFrame, sheet_name: str):
+    def store_sheet(self, address: Address, sheet: pl.DataFrame, sheet_name: str):
         sheet_path = self.sheet_path(address, sheet_name)
         sheet_path.parent.mkdir(exist_ok=True, parents=True)
-        sheet.to_parquet(sheet_path, index=False)
+        sheet.write_parquet(sheet_path)
 
     def entities(
         self,
-        entity_type: Type[Entity],
-        search_term: Optional[str] = None,
-        only_owned_by: Optional[str] = None,
-    ) -> List[Entity]:
+        entity_type: type[Entity],
+        search_term: str | None = None,
+        only_owned_by: str | None = None,
+    ) -> list[Entity]:
         addr = (
             Address.from_str(str(desc.parent.relative_to(self.base_meta)))
             for desc in self.base_meta.glob("**/desc.md")

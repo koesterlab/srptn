@@ -2,14 +2,15 @@ name: srptn
 channels:
   - conda-forge
   - bioconda
-  - nodefaults
 dependencies:
-  - python=3.11
-  - streamlit=1.38.0
+  - python=3.12
+  - streamlit=1.41
   - humanfriendly
-  - polars
-  - pytest=8.2.1
+  - libtmux=0.40
+  - polars=1.17
+  - pytest=8.3
   - snakedeploy >=0.10,<1.0
+  - snakemake=8.27
   - pip:
       - streamlit-ace
       - streamlit-tags # Editable multiselects

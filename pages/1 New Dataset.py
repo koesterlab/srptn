@@ -10,7 +10,7 @@ from common.utils.polars_utils import load_data_table
 owner = "koesterlab"
 data_store = FSDataStore()
 
-categories = category_editor()
+categories = category_editor("new_dataset-meta")
 dataset_name = st.text_input("Dataset name")
 
 address = Address(owner, Dataset, categories=categories, name=dataset_name)

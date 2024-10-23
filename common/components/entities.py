@@ -1,9 +1,16 @@
 import streamlit as st
 
 from common.data import DataStore, Entity
+from common.components.ui_components import persistent_multiselect
 
 
 def entity_browser(data_store: DataStore, entity_type: type[Entity], owner: str):
+    """Display a browser interface for searching and filtering entities.
+
+    :param data_store: The data store containing entities to browse.
+    :param entity_type: The type of entities to browse.
+    :param owner: The owner of the entities.
+    """
     search_term = st.text_input("Search")
     only_owned = st.checkbox("only owned")
 
@@ -23,14 +30,25 @@ def entity_browser(data_store: DataStore, entity_type: type[Entity], owner: str)
 def entity_selector(
     data_store: DataStore, entity_type: type[Entity], key: str
 ) -> list[Entity]:
+    """Allow the user to select entities from a list.
+
+    :param data_store: The data store containing entities to select.
+    :param entity_type: The type of entities to select.
+    :param key: A unique key for storing selection state.
+    :return: A list of selected entities.
+    """
     entities = data_store.entities(entity_type=entity_type)
 
     if entities:
         names = [str(entity.address) for entity in entities]
-        selected = st.multiselect("Select dataset", names, key=key)
+        selected = persistent_multiselect(
+            "Select datasets",
+            names,
+            key,
+        )
         entities = [entity for entity in entities if str(entity.address) in selected]
         st.session_state["workflow-meta-datasets-sheets"] = {
-            entity.address.name: entity.sheet for entity in entities
+            str(entity.address): entity.sheet for entity in entities
         }
         return entities
     st.warning(f"No {entity_type.__name__.lower()} found")

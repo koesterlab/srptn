@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 import polars as pl
+import re
 
 
 @dataclass
@@ -20,6 +21,13 @@ class Address:
         owner, entity, *categories, name = value.split("/")
         entity = _entity_types[entity]
         return cls(owner=owner, entity_type=entity, categories=categories, name=name)
+
+    @classmethod
+    def from_filename(cls, filename: str):
+        return cls.from_str(re.sub(r"___", "/", filename))
+
+    def to_filename(self):
+        return re.sub(r"/", "___", str(self))
 
     def __str__(self):
         return f"{self.owner}/{self.entity_type.__name__.lower()}/{'/'.join(self.categories)}/{self.name}"

@@ -7,24 +7,12 @@ from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 def enforce_typing(data: pl.DataFrame, schema: dict) -> pl.DataFrame:
     """
-    Enforce data types of a polars DataFrame based on a provided schema.
+    Enforces data types of a Polars DataFrame based on a provided schema.
 
-    Parameters
-    ----------
-    data : polars.DataFrame
-        The input DataFrame whose columns need to be typed according to the schema.
-    schema : dict
-        A dictionary schema, which contains column names and their corresponding types.
-
-    Returns
-    -------
-    polars.DataFrame
-        The DataFrame with columns cast to the specified types as per the schema.
-
-    Raises
-    ------
-    polars.InvalidOperationError
-        If a type conversion fails, an error is displayed, and the program stops.
+    :param data: The input DataFrame whose columns need to be typed according to the schema.
+    :param schema: A dictionary schema containing column names and their corresponding types.
+    :returns: The DataFrame with columns cast to the specified types as per the schema.
+    :raises polars.InvalidOperationError: If a type conversion fails.
     """
     for field, field_info in schema.get("properties", {}).items():
         match field_info["type"]:
@@ -46,46 +34,32 @@ def enforce_typing(data: pl.DataFrame, schema: dict) -> pl.DataFrame:
 
 
 def get_type_specific_default(dtype: pl.datatypes.DataType):
-    """
-    Return the appropriate padding value based on the column's data type.
+    """Returns the appropriate padding value based on the column's data type.
 
-    Parameters
-    ----------
-    dtype : polars.datatypes.DataType
-        The Polars data type of the column.
-
-    Returns
-    -------
-    default_value : str, float, or int
-        Returns:
-        - `""` if the column is of type `pl.Utf8` (string).
-        - `nan` if the column is of type `pl.Float64` (float).
-        - `0` if the column is of type `pl.Int64` (integer).
+    :param dtype: The Polars data type of the column.
+    :returns: The padding value based on the type.
+        - `""` for string columns.
+        - `nan` for float columns.
+        - `0` for integer columns.
+        - None for unsupported data types.
     """
-    if dtype == pl.Utf8:
+    if dtype == "String" or dtype == pl.Utf8:
         return ""
-    if dtype == pl.Float64:
+    if dtype == "Float64" or dtype == pl.Float64:
         return float("nan")
-    if dtype == pl.Int64:
+    if dtype == "Int64" or dtype == pl.Int64:
         return 0
-    return None  # Default case of polars for missing values
+    return None
 
 
 def load_data_table(file: UploadedFile | Path, source: str = "file") -> pl.DataFrame:
-    """
-    Load a data table from an uploaded file or a file path based on the source.
+    """Loads a data table from an uploaded file or a file path based on the source.
 
-    Parameters
-    ----------
-    file : UploadedFile or Path
-        The uploaded file or file path to load the data from.
-    source : str
-        The source of the file - either 'upload' or 'file'. Default is 'file'.
-
-    Returns
-    -------
-    polars.DataFrame
-        The loaded data table as a Polars DataFrame.
+    :param file: The uploaded file or file path to load the data from.
+    :param source: The source of the file - either 'upload' or 'file'. Defaults to 'file'.
+    :returns: The loaded data table as a Polars DataFrame.
+    :raises FileNotFoundError: If the file does not exist when source is 'file'.
+    :raises StreamlitError: For unsupported file formats or missing files.
     """
 
     def read_data(file, file_type):
@@ -112,3 +86,28 @@ def load_data_table(file: UploadedFile | Path, source: str = "file") -> pl.DataF
         except FileNotFoundError:
             st.error(f"File {file.name} does not exist")
             return None
+
+
+def save_data_table(data: pl.DataFrame, path: Path):
+    """Saves a data table to a file based on the file extension.
+
+    :param data: The Polars DataFrame to save.
+    :param path: The file path where the data should be saved.
+    :raises ValueError: If the file extension is unsupported.
+    :raises Exception: If saving the data fails.
+    """
+    file_extension = path.suffix
+    try:
+        if file_extension == ".tsv":
+            data.write_csv(path, separator="\t")
+        elif file_extension == ".csv":
+            data.write_csv(path)
+        elif file_extension == ".xlsx":
+            data.write_excel(path)
+        else:
+            raise ValueError(
+                f"Unsupported file format: {file_extension}. Supported formats are: TSV, CSV, XLSX"
+            )
+        # print(f"Data successfully saved to {path}")
+    except Exception as e:
+        print(f"Failed to save data: {e}")

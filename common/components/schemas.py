@@ -6,22 +6,10 @@ import streamlit as st
 
 
 def get_nonan_index(value: list) -> int | None:
-    """
-    Find the index of the first non-NaN value in the list.
+    """Find the index of the first non-NaN value in the list.
 
-    Parameters
-    ----------
-    value : list
-        A list of values to search for the first non-NaN value.
-
-    Returns
-    -------
-    int or None
-        The index of the first non-NaN value in the list, or None if all values are NaN.
-
-    Notes
-    -----
-    This function iterates over the list to find the first value that is not NaN.
+    :param value: A list of values to search for the first non-NaN value.
+    :return: The index of the first non-NaN value in the list, or None if all values are NaN.
     """
 
     def isna(value):
@@ -34,19 +22,12 @@ def get_nonan_index(value: list) -> int | None:
 
 
 def get_property_type(schema: dict) -> str | None:
-    """
-    Determine the property type key in a schema dictionary.
+    """Determine the property type key in a schema dictionary.
 
-    Parameters
-    ----------
-    schema : dict
-        A dictionary representing the schema.
-
-    Returns
-    -------
-    str or None
-        The key of the property type in the schema, either "properties" or "patternProperties",
+    :param schema: A dictionary representing the schema.
+    :return: The key of the property type in the schema, either "properties" or "patternProperties",
         or None if neither is found.
+    :raises ValueError: If the schema structure is invalid.
     """
     if "properties" in schema:
         return "properties"
@@ -59,22 +40,10 @@ def get_property_type(schema: dict) -> str | None:
 
 
 def infer_schema(config: dict) -> dict:
-    """
-    Infer a JSON schema from a configuration dictionary.
+    """Infer a JSON schema from a configuration dictionary.
 
-    Parameters
-    ----------
-    config : dict
-        The configuration dictionary to infer the schema from.
-
-    Returns
-    -------
-    dict
-        The inferred JSON schema.
-
-    Notes
-    -----
-    This function recursively infers the schema for nested dictionaries.
+    :param config: The configuration dictionary to infer the schema from.
+    :return: The inferred JSON schema.
     """
     schema = {"type": "object", "properties": {}}
     for key, value in config.items():
@@ -86,22 +55,10 @@ def infer_schema(config: dict) -> dict:
 
 
 def infer_type(value) -> dict:
-    """
-    Infer the JSON schema type for a given value.
+    """Infer the JSON schema type for a given value.
 
-    Parameters
-    ----------
-    value : Any
-        The value for which to infer the type.
-
-    Returns
-    -------
-    dict
-        The inferred JSON schema type definition.
-
-    Notes
-    -----
-    This function determines the JSON schema type based on the Python type of the input value.
+    :param value: The value for which to infer the type.
+    :return: The inferred JSON schema type definition.
     """
     match value:
         case value if isinstance(value, pl.Series):
@@ -130,25 +87,11 @@ def infer_type(value) -> dict:
 
 
 def update_schema(schema: dict, config: dict) -> dict:
-    """
-    Update a JSON schema based on a config dictionary.
+    """Update a JSON schema based on a config dictionary.
 
-    Parameters
-    ----------
-    schema : dict
-        The existing JSON schema to be updated.
-    config : dict
-        The config dictionary used to update the schema.
-
-    Returns
-    -------
-    dict
-        The updated JSON schema.
-
-    Notes
-    -----
-    This function updates the schema by adding missing entries from the config.
-    It recursively processes nested dictionaries to ensure the schema is fully updated.
+    :param schema: The existing JSON schema to be updated.
+    :param config: The config dictionary used to update the schema.
+    :return: The updated JSON schema.
     """
     prop_key = get_property_type(schema)
     items = []

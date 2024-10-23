@@ -10,31 +10,40 @@ from common.data import Address, DataStore, Entity, FileType
 
 @dataclass(slots=True)
 class FSDataStore(DataStore):
+    """A file-system-based implementation of the DataStore interface."""
+
     base_data: Path = Path("datastore/data")
     base_meta: Path = Path("datastore/meta")
 
     def clean(self, address: Address):
-        self.meta_path(address).unlink(missing_ok=True)
+        """Removes metadata and data files associated with the given address."""
+        self.files_path(address, FileType.META).unlink(missing_ok=True)
         self.files_path(address, FileType.DATA).unlink(missing_ok=True)
 
     def load_sheet(self, address: Address, sheet_name: str) -> pl.DataFrame:
+        """Loads a sample sheet as a Polars DataFrame from the given address."""
         return pl.read_parquet(self.sheet_path(address, sheet_name))
 
     def has_sheet(self, address: Address, sheet_name: str) -> bool:
+        """Checks if a sample sheet exists for the given address and sheet name."""
         return self.sheet_path(address, sheet_name).exists()
 
     def load_desc(self, address: Address) -> str:
+        """Loads and returns the description text for the given address."""
         return self.desc_path(address).read_text()
 
     def load_file(
         self, address: Address, file_path: str, file_type: FileType
     ) -> io.IOBase:
+        """Loads a file of a specific type from the given address."""
         return (self.files_path(address, file_type) / file_path).open("rb")
 
     def has_file(self, address: Address, file_path: str, file_type: FileType) -> bool:
+        """Checks if a file exists for the given address, path, and file type."""
         return (self.files_path(address, file_type) / file_path).exists()
 
     def list_files(self, address: Address, file_type: FileType) -> pl.DataFrame:
+        """Lists all files of a specific type at the given address."""
         files_dir = self.files_path(address, file_type)
         if files_dir.exists():
             return pl.DataFrame(
@@ -51,21 +60,21 @@ class FSDataStore(DataStore):
     def store_file(
         self, address: Address, file: io.IOBase, file_path: str, file_type: FileType
     ):
+        """Stores a file of a specific type at the given address."""
         folder = self.files_path(address, file_type)
         file_path = folder / file_path
         file_path.parent.mkdir(exist_ok=True, parents=True)
         with (file_path).open("wb") as f:
-            # import pdb
-
-            # pdb.set_trace()
             shutil.copyfileobj(file, f)
 
     def store_desc(self, address: Address, desc: str):
+        """Stores the description text for the given address."""
         desc_path = self.desc_path(address)
         desc_path.parent.mkdir(exist_ok=True, parents=True)
         desc_path.write_text(desc)
 
     def store_sheet(self, address: Address, sheet: pl.DataFrame, sheet_name: str):
+        """Stores a sample sheet as a Parquet file at the given address."""
         sheet_path = self.sheet_path(address, sheet_name)
         sheet_path.parent.mkdir(exist_ok=True, parents=True)
         sheet.write_parquet(sheet_path)
@@ -76,6 +85,7 @@ class FSDataStore(DataStore):
         search_term: str | None = None,
         only_owned_by: str | None = None,
     ) -> list[Entity]:
+        """Retrieves entities of a specific type, filtered by search term and owner."""
         addr = (
             Address.from_str(str(desc.parent.relative_to(self.base_meta)))
             for desc in self.base_meta.glob("**/desc.md")
@@ -108,23 +118,25 @@ class FSDataStore(DataStore):
         )
 
     def has_entity(self, address: Address):
+        """Checks if an entity exists for the given address."""
         return self.desc_path(address).exists()
 
     @staticmethod
     def as_path(base: Path, address: Address) -> Path:
+        """Converts a base path and address into a full path."""
         return base / str(address)
 
     def desc_path(self, address: Address) -> Path:
-        return self.meta_path(address) / "desc.md"
+        """Returns the path to the description file for the given address."""
+        return self.files_path(address, FileType.META) / "desc.md"
 
     def sheet_path(self, address: Address, name: str) -> Path:
-        return self.meta_path(address) / f"{name}.parquet"
-
-    def meta_path(self, address: Address) -> Path:
-        return self.as_path(self.base_meta, address)
+        """Returns the path to a sheet file for the given address and name."""
+        return self.files_path(address, FileType.META) / f"{name}.parquet"
 
     def files_path(self, address: Address, file_type: FileType) -> Path:
+        """Returns the path to the files directory for a given address and type."""
         return self.as_path(
-            self.base_data if file_type == FileType.DATA else self.base_meta / "files",
+            self.base_data if file_type == FileType.DATA else self.base_meta,
             address,
         )

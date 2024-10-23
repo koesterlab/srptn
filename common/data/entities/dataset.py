@@ -10,12 +10,15 @@ from common.data import Address, DataStore, Entity, FileType
 
 @dataclass
 class Dataset(Entity):
+    """Represents a dataset with associated metadata and data files."""
+
     sheet: pl.DataFrame | None
     data_files: list[io.BytesIO] | None = None
     meta_files: list[io.BytesIO] | None = None
     _data_store: DataStore | None = None
 
     def show(self):
+        """Displays the dataset details, sample sheet, and downloadable files."""
         st.header(self.address, divider=True)
         st.markdown(self.desc)
         if self.sheet is not None:
@@ -39,6 +42,7 @@ class Dataset(Entity):
 
     @classmethod
     def load(cls, data_store: DataStore, address: Address):
+        """Loads a dataset from the data store using its address."""
         sheet_name = "sheet"
         if data_store.has_sheet(address, sheet_name):
             sheet = data_store.load_sheet(address, sheet_name)
@@ -50,6 +54,7 @@ class Dataset(Entity):
         )
 
     def store(self, data_store: DataStore):
+        """Stores the dataset, including files and sample sheet, in the data store."""
         data_store.clean(self.address)
         data_store.store_desc(self.address, self.desc)
         data_store.store_sheet(self.address, self.sheet, "sheet")
@@ -63,4 +68,5 @@ class Dataset(Entity):
             )
 
     def list_files(self, file_type: FileType):
+        """Lists files of a specific type (DATA or META) in the data store."""
         return self._data_store.list_files(self.address, file_type=file_type)

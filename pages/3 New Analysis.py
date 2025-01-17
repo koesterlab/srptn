@@ -41,8 +41,8 @@ def store_analysis(
     workflow_manager: WorkflowManager,
     data_store: data_store,
 ):
+    valid = True
     if st.session_state.get("workflow-config-form-valid"):
-        valid = True
         invalid_fields = [
             key
             for key, value in st.session_state.get("workflow-config-form-valid").items()

@@ -135,7 +135,11 @@ def get_input_element(
         if tag:
             new_value += tag
         keys = input_key.split("-", 2)[-1].split(".")[1:]
-        sub_dict = reduce(lambda d, key: d.get(key, {}), keys[:-1], config)
+        try:
+            sub_dict = reduce(lambda d, key: d.get(key, {}), keys[:-1], config)
+        except Exception as e:
+            st.error(f"Failed to update config: {e}")
+            return
         if isinstance(sub_dict, dict):
             sub_dict[keys[-1]] = new_value
 

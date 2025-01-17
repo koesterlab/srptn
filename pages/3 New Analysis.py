@@ -3,7 +3,7 @@ import streamlit as st
 from common.components.categories import category_editor
 from common.components.descriptions import desc_editor
 from common.components.entities import entity_selector
-from common.components.ui_components import persistend_text_input
+from common.components.ui_components import persistent_text_input
 from common.components.workflows import workflow_editor, workflow_selector
 from common.data import Address
 from common.data.entities.analysis import Analysis, WorkflowManager
@@ -15,7 +15,7 @@ data_store = FSDataStore()
 
 categories = category_editor("workflow-meta")
 
-analysis_name = persistend_text_input(
+analysis_name = persistent_text_input(
     "Analysis name", "workflow-meta-name", "Enter name"
 )
 

@@ -77,7 +77,10 @@ class FSDataStore(DataStore):
         """Stores a sample sheet as a Parquet file at the given address."""
         sheet_path = self.sheet_path(address, sheet_name)
         sheet_path.parent.mkdir(exist_ok=True, parents=True)
-        sheet.write_parquet(sheet_path)
+        try:
+            sheet.write_parquet(sheet_path)
+        except Exception as e:
+            raise RuntimeError(f"Failed to write sheet to {sheet_path}: {e}") from e
 
     def entities(
         self,

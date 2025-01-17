@@ -62,6 +62,8 @@ def infer_type(value) -> dict:
     """
     match value:
         case value if isinstance(value, pl.Series):
+            if len(value) == 0:
+                return {"type": "missing"}
             idx = get_nonan_index(value)
             value_schema = {
                 "type": "array",

@@ -54,8 +54,12 @@ class TmuxSessionManager:
 
     def capture_output(self, session_name: str):
         """Captures pane output from a tmux session."""
-        session = self.get_session(session_name)
-        if not session:
+        try:
+            session = self.get_session(session_name)
+            if not session:
+                return None
+            # Captures both stdout and stderr
+            return "\n".join(session.active_pane.capture_pane(start=-10000))
+        except libtmux.exc.LibTmuxException as e:
+            st.error(f"Failed to capture tmux output: {str(e)}")
             return None
-        # Captures both stdout and stderr
-        return "\n".join(session.active_pane.capture_pane(start=-10000))

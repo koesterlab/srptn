@@ -129,9 +129,11 @@ def get_input_element(
     :param ace_editor: Whether the input element is part of an ACE editor form.
     """
 
-    def update_config_value(input_key):
+    def update_config_value(input_key, tag: str):
         config = st.session_state["workflow-config-form"]
         new_value = st.session_state[input_key]
+        if tag:
+            new_value += tag
         keys = input_key.split("-", 2)[-1].split(".")[1:]
         sub_dict = reduce(lambda d, key: d.get(key, {}), keys[:-1], config)
         if isinstance(sub_dict, dict):
@@ -139,6 +141,7 @@ def get_input_element(
 
     input_value = value
     input_type = input_dict.get("type", "missing")
+    tag = ""
     if not ace_editor:  # Do not show in ace_editor just validate
         match input_type:
             case input_type if (
@@ -182,6 +185,8 @@ def get_input_element(
                 input_value = st.number_input(label=label, value=value, key=key)
             case input_type if input_type == "number":
                 if "e" in str(value).lower():
+                    tag = "scn"  # label for CustomSafeDumper
+                    value = value[:-3] if value.endswith(tag) else value
                     input_value = st.text_input(label=label, value=value, key=key)
                 else:
                     input_value = st.number_input(
@@ -205,9 +210,11 @@ def get_input_element(
                 )
             case input_type:
                 st.error("No fitting input was found for your data!")
+        if not tag:
+            tag = ""
         # Needs to be updated this way as we never want to have the page rerun but still update the config for deposition
         # Cannot be bound to on_change as st_tags does not support it
-        update_config_value(key)
+        update_config_value(key, tag)
 
     if required:
         valid = validate_input(input_value, input_type)

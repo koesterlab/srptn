@@ -24,9 +24,13 @@ class Address:
 
     @classmethod
     def from_filename(cls, filename: str):
+        if not filename or "___" not in filename:
+            raise ValueError("Invalid filename format")
         return cls.from_str(re.sub(r"___", "/", filename))
 
     def to_filename(self):
+        if "/" not in str(self):
+            raise ValueError("Invalid address format")
         return re.sub(r"/", "___", str(self))
 
     def __str__(self):

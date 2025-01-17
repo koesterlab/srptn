@@ -28,7 +28,7 @@ def persistent_multiselect(label: str, names: list, key: str) -> list:
     return selected
 
 
-def persistend_text_input(label: str, key: str, placeholder: str = "") -> str:
+def persistent_text_input(label: str, key: str, placeholder: str = "") -> str:
     """Create a persistent text input widget in Streamlit.
 
     :param label: The label for the text input widget.
@@ -54,7 +54,7 @@ def persistend_text_input(label: str, key: str, placeholder: str = "") -> str:
     return value
 
 
-def persistend_text_area(
+def persistent_text_area(
     label: str, key: str, placeholder: str = "", helpstr: str = ""
 ) -> str:
     """Create a persistent text area widget in Streamlit.

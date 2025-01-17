@@ -10,7 +10,7 @@ from common.components.schemas import (
     infer_schema,
     update_schema,
 )
-from common.components.ui_components import persistend_text_input
+from common.components.ui_components import persistent_text_input
 from common.data import Address, DataStore
 from common.data.entities.analysis import WorkflowManager
 
@@ -38,19 +38,19 @@ def workflow_selector(
         st.info("Please provide a workflow URL and a tag or branch")
         return None
 
-    url = persistend_text_input(
+    url = persistent_text_input(
         "Workflow repository URL (e.g. https://github.com/snakemake-workflows/rna-seq-kallisto-sleuth)",
         "workflow-meta-url",
         "https://github.com/snakemake-workflows/rna-seq-kallisto-sleuth",
     )
 
-    tag = persistend_text_input(
+    tag = persistent_text_input(
         "Workflow repository tag (optional)",
         "workflow-meta-tag",
         "Enter tag",
     )
 
-    branch = persistend_text_input(
+    branch = persistent_text_input(
         "Workflow repository branch (optional)",
         "workflow-meta-branch",
         "Enter branch",
@@ -74,7 +74,7 @@ def workflow_editor(workflow_manager: WorkflowManager) -> tempfile.TemporaryDire
     )
 
     st.divider()
-    if "workflow-config-form" not in st.session_state:
+    if not st.session_state.get("workflow-config-form"):
         st.session_state["workflow-config-form"] = workflow_manager.get_config()
         st.session_state["workflow-config-form-schema"] = workflow_manager.get_schema(
             "config"

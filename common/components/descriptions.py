@@ -3,7 +3,7 @@ import streamlit as st
 from common.components.ui_components import persistent_text_area
 
 
-def desc_editor(key):
+def desc_editor(key: str) -> str:
     """Edit and preview a text description in Markdown format.
 
     :param key: A string prefix to uniquely identify session state keys for descriptions.
@@ -13,7 +13,10 @@ def desc_editor(key):
 
     with col1:
         desc = persistent_text_area(
-            "Description", f"{key}-description", "Enter description", "Markdown Format"
+            "Description",
+            f"{key}-description",
+            "Enter description",
+            "Markdown Format",
         )
 
     with col2:

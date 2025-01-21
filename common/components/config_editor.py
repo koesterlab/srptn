@@ -6,16 +6,18 @@ import yaml
 from polars import DataFrame
 from streamlit_ace import st_ace
 from streamlit_tags import st_tags
-from common.utils.yaml_utils import CustomSafeLoader
 
 from common.components.data_editor import data_editor, data_selector
 from common.components.schemas import get_property_type
 from common.data.entities.analysis import WorkflowManager
+from common.utils.yaml_utils import CustomSafeLoader
 
 
 def ace_config_editor(
-    config: dict, final_schema: dict, workflow_manager: WorkflowManager
-):
+    config: dict,
+    final_schema: dict,
+    workflow_manager: WorkflowManager,
+) -> None:
     """Edit a configuration file using the ACE editor in the Streamlit app.
 
     :param config: The configuration dictionary to be edited.
@@ -32,7 +34,11 @@ def ace_config_editor(
     )
 
 
-def config_editor(config: dict, final_schema: dict, workflow_manager: WorkflowManager):
+def config_editor(
+    config: dict,
+    final_schema: dict,
+    workflow_manager: WorkflowManager,
+) -> None:
     """Edit a configuration file in the Streamlit app using input elements.
 
     :param config: The configuration dictionary to be edited.
@@ -47,8 +53,9 @@ def create_form(
     schema: dict,
     workflow_manager: WorkflowManager,
     parent_key: str = "",
+    *,
     ace_editor: bool = False,
-):
+) -> None:
     """Generate a dynamic Streamlit form based on a config dictionary and schema.
 
     :param config: The configuration dictionary to populate the form.
@@ -75,8 +82,8 @@ def create_form(
                 value,
                 input_dict,
                 unique_element_id,
-                required_fields and key in required_fields,
                 workflow_manager,
+                required=required_fields and key in required_fields,
                 ace_editor=only_validation,
             )
         else:
@@ -108,43 +115,113 @@ def create_form(
                 )
 
 
+def handle_array_input(label: str, value: any, key: str) -> list:
+    """Handle input for array types."""
+    # cannot differentiate type here ~ no way to represent array of ints or floats except stringified
+    if not isinstance(value, list):
+        value = [value]
+    return st_tags(label=label, value=value, key=key)
+
+
+def handle_string_input(
+    label: str,
+    value: str,
+    key: str,
+    workflow_manager: WorkflowManager,
+) -> str:
+    """Handle input for string types."""
+    if not value.endswith((".tsv", ".csv", ".xlsx")):
+        return st.text_input(label=label, value=value, key=key)
+    input_value, show_data = data_selector(label, value, key, workflow_manager)
+    data_key = f"{key}-data"
+    # workaround for popver and expander "bug"
+    st.session_state[f"{key}-placeholders"] = [st.empty() for _ in range(3)]
+    if show_data and isinstance(st.session_state[data_key], DataFrame):
+        data_editor(key)
+    return input_value
+
+
+def handle_number_input(label: str, value: any, key: str) -> float | int:
+    """Handle input for numeric types."""
+    if "e" in str(value).lower():
+        tag = "scn"
+        value = value[:-3] if value.endswith(tag) else value
+        return st.text_input(label=label, value=value, key=key), tag
+    step = 10 ** -len(str(value).split(".")[-1]) if "." in str(value) else 0
+    return st.number_input(
+        label=label,
+        value=value,
+        key=key,
+        step=step,
+    ), ""
+
+
+def update_config_value(input_key: str, tag: str) -> None:
+    """Update the configuration value in the session state.
+
+    :param input_key: The key for the input element.
+    :param tag: A tag to append to the value.
+    """
+    config = st.session_state["workflow-config-form"]
+    new_value = st.session_state[input_key]
+    if tag:
+        new_value += tag
+    keys = input_key.split("-", 2)[-1].split(".")[1:]
+    try:
+        sub_dict = reduce(lambda d, key: d.get(key, {}), keys[:-1], config)
+    except (TypeError, AttributeError) as e:
+        st.error(f"Failed to update config due to an error: {e}")
+        return
+    if isinstance(sub_dict, dict):
+        sub_dict[keys[-1]] = new_value
+
+
+def validate_and_report(
+    input_value: any,
+    input_type: dict | str,
+    key: str,
+    *,
+    required: bool,
+) -> None:
+    """Validate the input value and report issues if necessary.
+
+    :param input_value: The value to validate.
+    :param input_type: The type of input.
+    :param key: The key for the input element.
+    :param required: Whether the input is required.
+    """
+    if required:
+        valid = validate_input(input_value, input_type)
+        # data inputs are validated in the data_editor and must not be overwritten here
+        if key not in st.session_state["workflow-config-form-valid"]:
+            st.session_state["workflow-config-form-valid"][key] = valid
+        if not valid:
+            report_invalid_input(input_value, key, input_type)
+
+
 @st.fragment
 def get_input_element(
     label: str,
     value: any,
     input_dict: dict,
     key: str,
-    required: bool,
     workflow_manager: WorkflowManager,
+    *,
+    required: bool,
     ace_editor: bool,
-):
+) -> None:
     """Generate a Streamlit input element and validate its value.
 
     :param label: The label for the input element.
     :param value: The current value of the input element.
     :param input_dict: Schema details for the input element.
     :param key: A unique key identifying the input element.
-    :param required: Whether the input is mandatory.
     :param workflow_manager: An object providing data-related functions.
+    :param required: Whether the input is mandatory.
     :param ace_editor: Whether the input element is part of an ACE editor form.
     """
-
-    def update_config_value(input_key, tag: str):
-        config = st.session_state["workflow-config-form"]
-        new_value = st.session_state[input_key]
-        if tag:
-            new_value += tag
-        keys = input_key.split("-", 2)[-1].split(".")[1:]
-        try:
-            sub_dict = reduce(lambda d, key: d.get(key, {}), keys[:-1], config)
-        except Exception as e:
-            st.error(f"Failed to update config: {e}")
-            return
-        if isinstance(sub_dict, dict):
-            sub_dict[keys[-1]] = new_value
-
-    input_value = value
     input_type = input_dict.get("type", "missing")
+    input_value = value
     tag = ""
     if not ace_editor:  # Do not show in ace_editor just validate
         match input_type:
@@ -153,57 +230,18 @@ def get_input_element(
                 or "array" in input_type
                 or (isinstance(input_type, list) and isinstance(value, list))
             ):
-                # cannot differentiate type here ~ no way to represent array of ints or floats except stringified
-                if not isinstance(value, list):
-                    value = [value]
-                # no on_change functionality present, maybe workaround
-                input_value = st_tags(
-                    label=label,
-                    value=value,
-                    key=key,
-                )
+                input_value = handle_array_input(label, value, key)
             case input_type if isinstance(input_type, list) and not isinstance(
-                value, list
+                value,
+                list,
             ):
                 # input has multiple types and value is not a list => text_input can handle all remaining types
-                input_value = st.text_input(label=label, value=value, key=key)
-            case input_type if input_type == "string":
-                if not value.endswith((".tsv", ".csv", ".xlsx")):
-                    input_value = st.text_input(
-                        label=label,
-                        value=value,
-                        key=key,
-                    )
-                else:
-                    input_value, show_data = data_selector(
-                        label, value, key, workflow_manager
-                    )
-                    data_key = f"{key}-data"
-                    # workaround for popver and expander "bug"
-                    st.session_state[f"{key}-placeholders"] = [
-                        st.empty() for _ in range(3)
-                    ]
-                    if show_data and isinstance(st.session_state[data_key], DataFrame):
-                        data_editor(key)
-            case input_type if input_type == "integer":
-                input_value = st.number_input(label=label, value=value, key=key)
-            case input_type if input_type == "number":
-                if "e" in str(value).lower():
-                    tag = "scn"  # label for CustomSafeDumper
-                    value = value[:-3] if value.endswith(tag) else value
-                    input_value = st.text_input(label=label, value=value, key=key)
-                else:
-                    input_value = st.number_input(
-                        label=label,
-                        value=value,
-                        key=key,
-                        step=10
-                        ** (
-                            -len(str(value).split(".")[-1]) if "." in str(value) else 0
-                        ),  # infer significant decimals
-                        format="%f",
-                    )
-            case input_type if input_type == "boolean":
+                input_value = handle_string_input(label, value, key, workflow_manager)
+            case "string":
+                input_value = handle_string_input(label, value, key, workflow_manager)
+            case "integer" | "number":
+                input_value, tag = handle_number_input(label, value, key)
+            case "boolean":
                 input_value = st.checkbox(label=label, value=value, key=key)
             case input_type if input_type == "missing":
                 # empty endpoints default to list
@@ -214,22 +252,13 @@ def get_input_element(
                 )
             case input_type:
                 st.error("No fitting input was found for your data!")
-        if not tag:
-            tag = ""
         # Needs to be updated this way as we never want to have the page rerun but still update the config for deposition
         # Cannot be bound to on_change as st_tags does not support it
         update_config_value(key, tag)
-
-    if required:
-        valid = validate_input(input_value, input_type)
-        # data inputs are validated in the data_editor and must not be overwritten here
-        if key not in st.session_state["workflow-config-form-valid"]:
-            st.session_state["workflow-config-form-valid"][key] = valid
-        if not valid:
-            report_invalid_input(input_value, key, input_type)
+    validate_and_report(input_value, input_type, key, required=required)
 
 
-def report_invalid_input(value: any, key: str, input_type: str):
+def report_invalid_input(value: any, key: str, input_type: str) -> None:
     """Display an error message for invalid input values in the Streamlit app.
 
     :param value: The current value of the input element.
@@ -271,6 +300,6 @@ def validate_input(value: any, input_type: str) -> bool:
         case typing if typing == "number":
             if "e" in str(value).lower():
                 return True
-            if not isinstance(value, (int, float)):
+            if not isinstance(value, int | float):
                 return False
     return True

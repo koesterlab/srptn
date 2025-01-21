@@ -16,7 +16,8 @@ from common.data.entities.analysis import WorkflowManager
 
 
 def workflow_selector(
-    address: Address, data_store: DataStore
+    address: Address,
+    data_store: DataStore,
 ) -> WorkflowManager | None:
     """Create a workflow selector widget in Streamlit with persistent text inputs.
 
@@ -24,13 +25,19 @@ def workflow_selector(
     """
 
     @st.cache_data(show_spinner="Fetching workflow from API...")
-    def get_workflow(url, tag, branch, refresh):
+    def get_workflow(
+        url: str,
+        tag: str,
+        branch: str,
+        *,
+        refresh: bool,
+    ) -> WorkflowManager:
         if url and (tag or branch):
             for key in st.session_state:
                 if key.startswith("workflow-config-"):
                     del st.session_state[key]
             # old tempdir is deleted -> re-caching the workflow
-            st.session_state["workflow-refresh"] = False
+            st.session_state["workflow-refresh"] = not refresh
 
             workflow_manager = WorkflowManager(url, tag, branch, data_store, address)
             workflow_manager.store()
@@ -57,12 +64,11 @@ def workflow_selector(
     )
     if "workflow-refresh" not in st.session_state:
         st.session_state["workflow-refresh"] = False
-    return get_workflow(url, tag, branch, st.session_state["workflow-refresh"])
+    return get_workflow(url, tag, branch, refresh=st.session_state["workflow-refresh"])
 
 
 def workflow_editor(workflow_manager: WorkflowManager) -> tempfile.TemporaryDirectory:
-    """
-    Create and edit the configuration of a workflow.
+    """Create and edit the configuration of a workflow.
 
     :param workflow: The workflow object containing URL, tag, and branch information.
     :return: The temporary directory where the workflow is deployed.
@@ -77,7 +83,7 @@ def workflow_editor(workflow_manager: WorkflowManager) -> tempfile.TemporaryDire
     if not st.session_state.get("workflow-config-form"):
         st.session_state["workflow-config-form"] = workflow_manager.get_config()
         st.session_state["workflow-config-form-schema"] = workflow_manager.get_schema(
-            "config"
+            "config",
         )
         config = st.session_state["workflow-config-form"]
         config_schema = st.session_state["workflow-config-form-schema"]

@@ -1,14 +1,15 @@
 import streamlit as st
 
 
-def category_editor(key):
-    """Creates and manages a category editor interface using Streamlit.
+def category_editor(key: str) -> list:
+    """Create and manages a category editor interface using Streamlit.
 
     :param key: A string prefix to uniquely identify session state keys for categories.
-    :returns: A list of category and subcategory inputs, excluding the placeholder for new entries.
+    :returns: A list of category and subcategory inputs, excluding the placeholder for
+    new entries.
     """
 
-    def update_categories(position):
+    def update_categories(position: int) -> None:
         st.session_state[f"{key}-categories"][position] = st.session_state[
             f"{key}-category-{position}"
         ]

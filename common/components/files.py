@@ -3,7 +3,7 @@ import streamlit as st
 from humanfriendly import format_size
 
 
-def file_browser(files: pl.DataFrame):
+def file_browser(files: pl.DataFrame) -> None:
     """Display a file browser with file names and formatted sizes.
 
     :param files: A DataFrame containing file metadata, including columns for "name" and "size".
@@ -14,7 +14,7 @@ def file_browser(files: pl.DataFrame):
             pl.col("size")
             .map_elements(format_size, return_dtype=pl.Utf8)
             .alias("size"),
-        ]
+        ],
     )
 
     st.dataframe(files)

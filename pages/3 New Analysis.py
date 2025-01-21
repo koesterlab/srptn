@@ -16,7 +16,9 @@ data_store = FSDataStore()
 categories = category_editor("workflow-meta")
 
 analysis_name = persistent_text_input(
-    "Analysis name", "workflow-meta-name", "Enter name"
+    "Analysis name",
+    "workflow-meta-name",
+    "Enter name",
 )
 
 address = Address(owner, Analysis, categories=categories, name=analysis_name)
@@ -36,11 +38,12 @@ workflow_manager = workflow_selector(address, data_store)
 
 def store_analysis(
     address: Address,
-    desc,
-    datasets,
+    desc: str,
+    datasets: list[Dataset],
     workflow_manager: WorkflowManager,
     data_store: data_store,
-):
+) -> None:
+    """Store the analysis."""
     valid = True
     if st.session_state.get("workflow-config-form-valid"):
         invalid_fields = [
@@ -51,7 +54,9 @@ def store_analysis(
         if invalid_fields:
             invalid_fields_str = ", ".join(invalid_fields)
             st.error(
-                f"The following field{'s are' if len(invalid_fields) > 1 else ' is'} incorrect: {invalid_fields_str}"
+                f"""The following field
+                {"s are" if len(invalid_fields) > 1 else " is"}
+                incorrect: {invalid_fields_str}""",
             )
             valid = False
     if valid:

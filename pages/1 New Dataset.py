@@ -1,5 +1,6 @@
 import polars as pl
 import streamlit as st
+
 from common.components.categories import category_editor
 from common.components.descriptions import desc_editor
 from common.data import Address
@@ -42,7 +43,8 @@ if sheet:
 meta_files = st.file_uploader("Metadata files", accept_multiple_files=True)
 
 store = st.button(
-    "Store", disabled=not desc or not files or (multi_file and sheet is None)
+    "Store",
+    disabled=not desc or not files or (multi_file and sheet is None),
 )
 
 if store:

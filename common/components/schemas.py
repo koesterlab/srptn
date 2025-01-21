@@ -9,10 +9,11 @@ def get_nonan_index(value: list) -> int | None:
     """Find the index of the first non-NaN value in the list.
 
     :param value: A list of values to search for the first non-NaN value.
-    :return: The index of the first non-NaN value in the list, or None if all values are NaN.
+    :return: The index of the first non-NaN value in the list, or None if all values
+    are NaN.
     """
 
-    def isna(value):
+    def isna(value: any) -> int | None:
         return not value or (isinstance(value, float) and isnan(value))
 
     for idx, v in enumerate(value):
@@ -25,7 +26,8 @@ def get_property_type(schema: dict) -> str | None:
     """Determine the property type key in a schema dictionary.
 
     :param schema: A dictionary representing the schema.
-    :return: The key of the property type in the schema, either "properties" or "patternProperties",
+    :return: The key of the property type in the schema, either "properties" or
+    "patternProperties",
         or None if neither is found.
     :raises ValueError: If the schema structure is invalid.
     """
@@ -34,7 +36,7 @@ def get_property_type(schema: dict) -> str | None:
     if "patternProperties" in schema:
         return "patternProperties"
     raise ValueError(
-        "Wrong schema structure, please use either properties or patternProperties"
+        "Wrong schema structure, please use either properties or patternProperties",
     )
     return None
 
@@ -54,7 +56,7 @@ def infer_schema(config: dict) -> dict:
     return schema
 
 
-def infer_type(value) -> dict:
+def infer_type(value: pl.Series | list | bool | float | str | None) -> dict:
     """Infer the JSON schema type for a given value.
 
     :param value: The value for which to infer the type.

@@ -1,10 +1,14 @@
 import streamlit as st
 
-from common.data import DataStore, Entity
 from common.components.ui_components import persistent_multiselect
+from common.data import DataStore, Entity
 
 
-def entity_browser(data_store: DataStore, entity_type: type[Entity], owner: str):
+def entity_browser(
+    data_store: DataStore,
+    entity_type: type[Entity],
+    owner: str,
+) -> None:
     """Display a browser interface for searching and filtering entities.
 
     :param data_store: The data store containing entities to browse.
@@ -28,7 +32,9 @@ def entity_browser(data_store: DataStore, entity_type: type[Entity], owner: str)
 
 
 def entity_selector(
-    data_store: DataStore, entity_type: type[Entity], key: str
+    data_store: DataStore,
+    entity_type: type[Entity],
+    key: str,
 ) -> list[Entity]:
     """Allow the user to select entities from a list.
 

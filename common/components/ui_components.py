@@ -1,6 +1,11 @@
 import streamlit as st
 
 
+def update(key: str) -> None:
+    """Update session state to facility persistent behavior."""
+    st.session_state[f"{key}-value"] = st.session_state[key]
+
+
 def persistent_multiselect(label: str, names: list, key: str) -> list:
     """Create a multiselect widget in Streamlit that persists its selection state across page reloads.
 
@@ -9,14 +14,10 @@ def persistent_multiselect(label: str, names: list, key: str) -> list:
     :param key: A unique key to store the selection state in Streamlit's session state.
     :return: A list of selected options.
     """
-
-    def update(key):
-        st.session_state[f"{key}-value"] = st.session_state[key]
-
     if f"{key}-value" not in st.session_state:
         st.session_state[f"{key}-value"] = []
 
-    selected = st.multiselect(
+    return st.multiselect(
         label,
         names,
         st.session_state[f"{key}-value"],
@@ -24,8 +25,6 @@ def persistent_multiselect(label: str, names: list, key: str) -> list:
         on_change=update,
         args=(key,),
     )
-
-    return selected
 
 
 def persistent_text_input(label: str, key: str, placeholder: str = "") -> str:
@@ -36,14 +35,10 @@ def persistent_text_input(label: str, key: str, placeholder: str = "") -> str:
     :param placeholder: Placeholder text to display in the text input widget (optional).
     :return: The current value of the text input widget.
     """
-
-    def update(key):
-        st.session_state[f"{key}-value"] = st.session_state[key]
-
     if f"{key}-value" not in st.session_state:
         st.session_state[f"{key}-value"] = ""
 
-    value = st.text_input(
+    return st.text_input(
         label,
         value=st.session_state[f"{key}-value"],
         key=key,
@@ -51,11 +46,13 @@ def persistent_text_input(label: str, key: str, placeholder: str = "") -> str:
         args=(key,),
         placeholder=placeholder,
     )
-    return value
 
 
 def persistent_text_area(
-    label: str, key: str, placeholder: str = "", helpstr: str = ""
+    label: str,
+    key: str,
+    placeholder: str = "",
+    helpstr: str = "",
 ) -> str:
     """Create a persistent text area widget in Streamlit.
 
@@ -65,14 +62,10 @@ def persistent_text_area(
     :param helpstr: Help text to display alongside the text area widget (optional).
     :return: The current value of the text area widget.
     """
-
-    def update(key):
-        st.session_state[f"{key}-value"] = st.session_state[key]
-
     if f"{key}-value" not in st.session_state:
         st.session_state[f"{key}-value"] = ""
 
-    value = st.text_area(
+    return st.text_area(
         label,
         value=st.session_state[f"{key}-value"],
         key=key,
@@ -81,7 +74,6 @@ def persistent_text_area(
         placeholder=placeholder,
         help=helpstr,
     )
-    return value
 
 
 def toggle_button(label: str, key: str, icon: str | None = None) -> bool:
@@ -93,7 +85,7 @@ def toggle_button(label: str, key: str, icon: str | None = None) -> bool:
     :return: The current toggle state (True or False).
     """
 
-    def toggle(state):
+    def toggle(state: str) -> None:
         st.session_state[state] = not st.session_state[state]
 
     unique_key = f"{key}-{label.lower()}"

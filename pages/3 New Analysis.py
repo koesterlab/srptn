@@ -72,7 +72,7 @@ if workflow_manager is not None:
     workflow_editor(workflow_manager)
     st.button(
         "Store",
-        disabled=(not desc) | (not analysis_name),
+        disabled=(not desc) or (not analysis_name),
         on_click=store_analysis,
         args=(
             address,

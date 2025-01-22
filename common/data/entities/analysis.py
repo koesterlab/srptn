@@ -186,7 +186,7 @@ class WorkflowManager:
 class AnalysisRuntimeManager:
     """Manages workflow execution in tmux sessions."""
 
-    def __init__(self, analysis_name: str) -> "AnalysisRuntimeManager":
+    def __init__(self, analysis_name: str) -> None:
         self.analysis_name: str = analysis_name
         self.session_name: str = f"{analysis_name}_session"
         self.tmux_manager: TmuxSessionManager = TmuxSessionManager()

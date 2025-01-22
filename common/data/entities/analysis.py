@@ -30,7 +30,7 @@ class WorkflowManager:
     def load(cls, data_store: DataStore, address: Address) -> "WorkflowManager":
         """Create a workflow instance from stored metadata."""
         meta_path = data_store.files_path(address, FileType.META)
-        with Path.open(meta_path / "details.yml", "r") as file:
+        with (meta_path / "details.yml").open("r") as file:
             details = yaml.safe_load(file)
         workflow_manager = cls(
             url=details["url"],
@@ -132,7 +132,7 @@ class WorkflowManager:
             "tag": self.tag,
             "branch": self.branch,
         }
-        with Path.open(self.meta_path / "details.yml", "w") as f:
+        with (self.meta_path / "details.yml").open("w") as f:
             yaml.safe_dump(details, f)
 
     def get_config(self) -> dict:
@@ -145,7 +145,7 @@ class WorkflowManager:
 
     def get_log(self, log_file_name: str) -> str:
         """Load log file for specified log file name."""
-        with Path.open(self.log_path / log_file_name, "r") as file:
+        with (self.log_path / log_file_name).open("r") as file:
             return file.read()
 
     def get_log_names(self) -> list[str]:
@@ -256,7 +256,7 @@ class Analysis(Entity):
             self.analysis_run_manager.show()
 
     @classmethod
-    def load(cls, data_store: DataStore, address: Address) -> None:
+    def load(cls, data_store: DataStore, address: Address) -> "Analysis":
         """Create Analysis instance from stored data."""
         desc = data_store.load_desc(address)
         datasets = [

@@ -21,4 +21,5 @@ def log_selector(data_store: DataStore, address: Address) -> str | None:
         log_file = workflow_manager.get_log(log_file_name)
         with st.container(height=450):
             st.text(log_file)
-    st.text("No Logs found.")
+    else:
+        st.text("No Logs found.")

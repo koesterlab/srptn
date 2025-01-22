@@ -26,7 +26,7 @@ class Dataset(Entity):
             st.dataframe(self.sheet)
 
         meta_files = self.list_files(FileType.META)
-        if not meta_files.is_empty:
+        if not meta_files.is_empty():
             st.subheader("Meta Files")
             for name in meta_files["name"]:
                 st.download_button(
@@ -76,6 +76,6 @@ class Dataset(Entity):
                 file_type=FileType.META,
             )
 
-    def list_files(self, file_type: FileType) -> list:
+    def list_files(self, file_type: FileType) -> pl.DataFrame:
         """List files of a specific type (DATA or META) in the data store."""
         return self._data_store.list_files(self.address, file_type=file_type)

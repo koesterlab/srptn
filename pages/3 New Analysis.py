@@ -54,9 +54,8 @@ def store_analysis(
         if invalid_fields:
             invalid_fields_str = ", ".join(invalid_fields)
             st.error(
-                f"""The following field
-                {"s are" if len(invalid_fields) > 1 else " is"}
-                incorrect: {invalid_fields_str}""",
+                f"The following field {'s are' if len(invalid_fields) > 1 else ' is'}"
+                f"incorrect: {invalid_fields_str}",
             )
             valid = False
     if valid:

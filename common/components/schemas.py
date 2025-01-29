@@ -5,7 +5,7 @@ import polars as pl
 import streamlit as st
 
 
-def get_nonan_index(value: list) -> int | None:
+def get_nonan_index(value: pl.Series | list) -> int | None:
     """Find the index of the first non-NaN value in the list.
 
     :param value: A list of values to search for the first non-NaN value.
@@ -13,7 +13,7 @@ def get_nonan_index(value: list) -> int | None:
     are NaN.
     """
 
-    def isna(value: any) -> int | None:
+    def isna(value: any) -> bool:
         return not value or (isinstance(value, float) and isnan(value))
 
     for idx, v in enumerate(value):
@@ -69,13 +69,17 @@ def infer_type(value: pl.Series | list | bool | float | str | None) -> dict:
             idx = get_nonan_index(value)
             value_schema = {
                 "type": "array",
-                "items": infer_type(value[idx]) if idx else {"type": "missing"},
+                "items": infer_type(value[idx])
+                if idx is not None
+                else {"type": "missing"},
             }
         case value if isinstance(value, list):
             idx = get_nonan_index(value)
             value_schema = {
                 "type": "array",
-                "items": infer_type(value[idx]) if idx else {"type": "missing"},
+                "items": infer_type(value[idx])
+                if idx is not None
+                else {"type": "missing"},
             }
         case bool(value):
             value_schema = {"type": "boolean"}
@@ -85,7 +89,7 @@ def infer_type(value: pl.Series | list | bool | float | str | None) -> dict:
             value_schema = {"type": "number"}
         case str(value):
             value_schema = {"type": "string"}
-        case value if value is None:
+        case value:
             value_schema = {"type": "missing"}
     return value_schema
 

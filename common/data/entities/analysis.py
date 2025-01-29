@@ -135,15 +135,16 @@ class WorkflowManager:
         with (self.meta_path / "details.yml").open("w") as f:
             yaml.safe_dump(details, f)
 
-    def get_config(self) -> dict:
+    def get_config(self) -> dict | None:
         """Load workflow configuration."""
         try:
-            return yaml.load(self.config_path.read_text(), Loader=CustomSafeLoader)
+            if self.config_path:
+                return yaml.load(self.config_path.read_text(), Loader=CustomSafeLoader)
         except yaml.YAMLError as e:
             st.error(f"Error parsing config YAML: {e}")
             st.stop()
 
-    def get_log(self, log_file_name: str) -> str:
+    def get_log(self, log_file_name: Path) -> str:
         """Load log file for specified log file name."""
         with (self.log_path / log_file_name).open("r") as file:
             return file.read()

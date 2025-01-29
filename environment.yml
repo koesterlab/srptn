@@ -4,13 +4,13 @@ channels:
   - bioconda
 dependencies:
   - python=3.12
-  - streamlit=1.41
+  - streamlit=1.44
   - humanfriendly
-  - libtmux=0.40
-  - polars=1.17
+  - libtmux=0.46
+  - polars=1.27
   - pytest=8.3
   - snakedeploy >=0.10,<1.0
-  - snakemake=8.27
+  - snakemake=9.1
   - pip:
       - streamlit-ace
       - streamlit-tags # Editable multiselects

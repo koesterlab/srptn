@@ -38,7 +38,7 @@ def persistent_text_input(label: str, key: str, placeholder: str = "") -> str:
     if f"{key}-value" not in st.session_state:
         st.session_state[f"{key}-value"] = ""
 
-    return st.text_input(
+    text = st.text_input(
         label,
         value=st.session_state[f"{key}-value"],
         key=key,
@@ -46,6 +46,8 @@ def persistent_text_input(label: str, key: str, placeholder: str = "") -> str:
         args=(key,),
         placeholder=placeholder,
     )
+
+    return text if text else ""
 
 
 def persistent_text_area(
@@ -65,7 +67,7 @@ def persistent_text_area(
     if f"{key}-value" not in st.session_state:
         st.session_state[f"{key}-value"] = ""
 
-    return st.text_area(
+    text = st.text_area(
         label,
         value=st.session_state[f"{key}-value"],
         key=key,
@@ -74,6 +76,8 @@ def persistent_text_area(
         placeholder=placeholder,
         help=helpstr,
     )
+
+    return text if text else ""
 
 
 def toggle_button(label: str, key: str, icon: str | None = None) -> bool:
@@ -100,3 +104,13 @@ def toggle_button(label: str, key: str, icon: str | None = None) -> bool:
         icon=icon,
     )
     return st.session_state[state]
+
+
+if __name__ == "__main__":
+    label = "test"
+    names = ["test1", "test2"]
+    key = "test"
+    persistent_multiselect(label, names, f"{key}-multiselect")
+    persistent_text_area(label, f"{key}-textarea")
+    persistent_text_input(label, f"{key}-textinput")
+    toggle_button(label, f"{key}-togglebutton")

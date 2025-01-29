@@ -32,3 +32,8 @@ def category_editor(key: str) -> list:
         for position, cat in enumerate(st.session_state[f"{key}-categories"])
     ]
     return categories[:-1]
+
+
+if __name__ == "__main__":
+    key = "test"
+    category_editor(key)

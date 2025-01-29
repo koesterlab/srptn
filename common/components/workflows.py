@@ -1,5 +1,3 @@
-import tempfile
-
 import streamlit as st
 
 from common.components.config_editor import (
@@ -26,12 +24,12 @@ def workflow_selector(
 
     @st.cache_data(show_spinner="Fetching workflow from API...")
     def get_workflow(
-        url: str,
-        tag: str,
-        branch: str,
+        url: str | None,
+        tag: str | None,
+        branch: str | None,
         *,
         refresh: bool,
-    ) -> WorkflowManager:
+    ) -> WorkflowManager | None:
         if url and (tag or branch):
             for key in st.session_state:
                 if key.startswith("workflow-config-"):
@@ -67,7 +65,7 @@ def workflow_selector(
     return get_workflow(url, tag, branch, refresh=st.session_state["workflow-refresh"])
 
 
-def workflow_editor(workflow_manager: WorkflowManager) -> tempfile.TemporaryDirectory:
+def workflow_editor(workflow_manager: WorkflowManager) -> None:
     """Create and edit the configuration of a workflow.
 
     :param workflow: The workflow object containing URL, tag, and branch information.

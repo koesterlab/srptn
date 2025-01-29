@@ -1,91 +1,68 @@
 import re
-from pathlib import Path
+from functools import reduce
 
 import streamlit as st
 import yaml
-from pandas import DataFrame
+from polars import DataFrame
 from streamlit_ace import st_ace
 from streamlit_tags import st_tags
 
 from common.components.data_editor import data_editor, data_selector
-from common.components.schemas import get_property_type, infer_schema, update_schema
+from common.components.schemas import get_property_type
+from common.data.entities.analysis import WorkflowManager
+from common.utils.yaml_utils import CustomSafeLoader
 
 
-def ace_config_editor(conf_path: Path, wd) -> str:
+def ace_config_editor(
+    config: dict,
+    final_schema: dict,
+    workflow_manager: WorkflowManager,
+) -> None:
+    """Edit a configuration file using the ACE editor in the Streamlit app.
+
+    :param config: The configuration dictionary to be edited.
+    :param final_schema: The schema that defines the structure and types of the config.
+    :param workflow_manager: An object providing data-related functions.
     """
-    Edit a configuration file in the Streamlit app with st_ace.
-
-    Parameters
-    ----------
-    conf_path : Path
-        The path to the configuration file.
-    wd : WorkflowDeployer
-        An object providing data-related functions.
-
-    Returns
-    -------
-    str
-        The updated configuration as a YAML string.
-    """
-    config, final_schema = load_config_and_schema(conf_path, wd)
-    st.session_state["workflow-config-form-valid"] = {}
-    config = st_ace(conf_path.read_text(), language="yaml")
+    config = st_ace(yaml.dump(config, sort_keys=False), language="yaml")
     create_form(
-        yaml.safe_load(config),
+        yaml.load(config, Loader=CustomSafeLoader),
         final_schema,
-        wd,
+        workflow_manager,
         "workflow-config-",
         ace_editor=True,
     )
-    return config
 
 
-def config_editor(conf_path: Path, wd) -> str:
+def config_editor(
+    config: dict,
+    final_schema: dict,
+    workflow_manager: WorkflowManager,
+) -> None:
+    """Edit a configuration file in the Streamlit app using input elements.
+
+    :param config: The configuration dictionary to be edited.
+    :param final_schema: The schema that defines the structure and types of the config.
+    :param workflow_manager: An object providing data-related functions.
     """
-    Edit a configuration file in the Streamlit app.
-
-    Parameters
-    ----------
-    conf_path : Path
-        The path to the configuration file.
-    wd : WorkflowDeployer
-        An object providing data-related functions.
-
-    Returns
-    -------
-    str
-        The updated configuration as a YAML string.
-    """
-    config, final_schema = load_config_and_schema(conf_path, wd)
-    st.session_state["workflow-config-form-valid"] = {}
-    config = create_form(config, final_schema, wd, "workflow-config-")
-    config = yaml.dump(config, sort_keys=False)
-    return config
+    create_form(config, final_schema, workflow_manager, "workflow-config-")
 
 
 def create_form(
-    config: dict, schema: dict, wd, parent_key: str = "", ace_editor: bool = False
-) -> dict:
-    """
-    Create a pseudo Streamlit form based on a config dictionary and schema.
+    config: dict,
+    schema: dict,
+    workflow_manager: WorkflowManager,
+    parent_key: str = "",
+    *,
+    ace_editor: bool = False,
+) -> None:
+    """Generate a dynamic Streamlit form based on a config dictionary and schema.
 
-    Parameters
-    ----------
-    config : dict
-        The config dictionary to generate the form from.
-    schema : dict
-        The schema defining the structure and types of the config.
-    wd : WorkflowDeployer
-        An object providing data-related functions.
-    parent_key : str, optional
-        The key of the parent config item, by default "".
-    ace_editor : bool, optional
-        If True, adjusts input generation and validation to be compatible with the ACE editor interface.
-
-    Returns
-    -------
-    dict
-        The updated config dictionary after form input.
+    :param config: The configuration dictionary to populate the form.
+    :param schema: The schema defining the structure and validation rules for the config.
+    :param workflow_manager: An object providing data-related functions.
+    :param parent_key: A key used to track nested configuration items, defaults to "".
+    :param ace_editor: Whether the form is used with the ACE editor, defaults to False.
     """
     prop_key = get_property_type(schema)
     required_fields = schema.get("required")
@@ -99,13 +76,14 @@ def create_form(
                 and value
                 and value.endswith((".tsv", ".csv", ".xlsx"))
             )
-            config[key] = get_input_element(
+            # input_element is self-contained and returns to config in session-state
+            get_input_element(
                 key,
                 value,
                 input_dict,
                 unique_element_id,
-                required_fields and key in required_fields,
-                wd,
+                workflow_manager,
+                required=required_fields and key in required_fields,
                 ace_editor=only_validation,
             )
         else:
@@ -117,17 +95,108 @@ def create_form(
         for tab, (key, value) in enumerate(new_tabs):
             updated_parent_key = update_key(parent_key, key)
             if prop_key == "patternProperties":
-                if not re.search(list(schema[prop_key].keys())[0], key):
+                if not re.search(next(iter(schema[prop_key])), key):
                     st.error("Field name does not match schema.")
-                key = list(schema[prop_key].keys())[0]
+                updated_key = next(iter(schema[prop_key]))
+            else:
+                updated_key = key
             if not ace_editor:
                 with tabs[tab]:
-                    new_schema = schema[prop_key].get(key)
-                    create_form(value, new_schema, wd, updated_parent_key)
+                    new_schema = schema[prop_key].get(updated_key)
+                    create_form(value, new_schema, workflow_manager, updated_parent_key)
             else:
-                new_schema = schema[prop_key].get(key)
-                create_form(value, new_schema, wd, updated_parent_key, ace_editor=True)
-    return config
+                new_schema = schema[prop_key].get(updated_key)
+                create_form(
+                    value,
+                    new_schema,
+                    workflow_manager,
+                    updated_parent_key,
+                    ace_editor=True,
+                )
+
+
+def handle_array_input(label: str, value: any, key: str) -> list:
+    """Handle input for array types."""
+    # cannot differentiate type here ~ no way to represent array of ints or floats except stringified
+    if not isinstance(value, list):
+        value = [value]
+    return st_tags(label=label, value=value, key=key)
+
+
+def handle_string_input(
+    label: str,
+    value: str,
+    key: str,
+    workflow_manager: WorkflowManager,
+) -> str:
+    """Handle input for string types."""
+    if not value.endswith((".tsv", ".csv", ".xlsx")):
+        return st.text_input(label=label, value=value, key=key)
+    input_value, show_data = data_selector(label, value, key, workflow_manager)
+    data_key = f"{key}-data"
+    # workaround for popver and expander "bug"
+    st.session_state[f"{key}-placeholders"] = [st.empty() for _ in range(3)]
+    if show_data and isinstance(st.session_state[data_key], DataFrame):
+        data_editor(key)
+    return input_value
+
+
+def handle_number_input(label: str, value: any, key: str) -> float | int:
+    """Handle input for numeric types."""
+    if "e" in str(value).lower():
+        tag = "scn"
+        value = value[:-3] if value.endswith(tag) else value
+        return st.text_input(label=label, value=value, key=key), tag
+    step = 10 ** -len(str(value).split(".")[-1]) if "." in str(value) else 0
+    return st.number_input(
+        label=label,
+        value=value,
+        key=key,
+        step=step,
+    ), ""
+
+
+def update_config_value(input_key: str, tag: str) -> None:
+    """Update the configuration value in the session state.
+
+    :param input_key: The key for the input element.
+    :param tag: A tag to append to the value.
+    """
+    config = st.session_state["workflow-config-form"]
+    new_value = st.session_state[input_key]
+    if tag:
+        new_value += tag
+    keys = input_key.split("-", 2)[-1].split(".")[1:]
+    try:
+        sub_dict = reduce(lambda d, key: d.get(key, {}), keys[:-1], config)
+    except (TypeError, AttributeError) as e:
+        st.error(f"Failed to update config due to an error: {e}")
+        return
+    if isinstance(sub_dict, dict):
+        sub_dict[keys[-1]] = new_value
+
+
+def validate_and_report(
+    input_value: any,
+    input_type: dict | str,
+    key: str,
+    *,
+    required: bool,
+) -> None:
+    """Validate the input value and report issues if necessary.
+
+    :param input_value: The value to validate.
+    :param input_type: The type of input.
+    :param key: The key for the input element.
+    :param required: Whether the input is required.
+    """
+    if required:
+        valid = validate_input(input_value, input_type)
+        # data inputs are validated in the data_editor and must not be overwritten here
+        if key not in st.session_state["workflow-config-form-valid"]:
+            st.session_state["workflow-config-form-valid"][key] = valid
+        if not valid:
+            report_invalid_input(input_value, key, input_type)
 
 
 @st.fragment
@@ -136,88 +205,43 @@ def get_input_element(
     value: any,
     input_dict: dict,
     key: str,
+    workflow_manager: WorkflowManager,
+    *,
     required: bool,
-    wd,
     ace_editor: bool,
-) -> any:
+) -> None:
+    """Generate a Streamlit input element and validate its value.
+
+    :param label: The label for the input element.
+    :param value: The current value of the input element.
+    :param input_dict: Schema details for the input element.
+    :param key: A unique key identifying the input element.
+    :param workflow_manager: An object providing data-related functions.
+    :param required: Whether the input is mandatory.
+    :param ace_editor: Whether the input element is part of an ACE editor form.
     """
-    Get the appropriate Streamlit input element based on the input type and validate it.
-
-    Parameters
-    ----------
-    label : str
-        The label for the input element.
-    value : any
-        The current value of the input element.
-    input_dict : dict
-        The schema type definition for the input element.
-    key : str
-        The unique key for the input element.
-    required : bool
-        Whether the input element is required.
-    wd : WorkflowDeployer
-        An object providing data-related functions.
-    ace_editor : bool
-        Different behavior for inputs accompanying the ace_editor
-
-    Returns
-    -------
-    any
-        The value of the input element after user input.
-
-    Notes
-    -----
-    Input generation and validation combined with @st.fragment to create inputs that do not cause page reload on change but can still produce verbose warnings and errors.
-    """
-    input_value = value
     input_type = input_dict.get("type", "missing")
+    input_value = value
+    tag = ""
     if not ace_editor:  # Do not show in ace_editor just validate
         match input_type:
-            case input_type if input_type == "array" or "array" in input_type or (
-                isinstance(input_type, list) and isinstance(value, list)
+            case input_type if (
+                input_type == "array"
+                or "array" in input_type
+                or (isinstance(input_type, list) and isinstance(value, list))
             ):
-                # cannot differentiate type here ~ no way to represent array of ints or floats except stringified
-                if not isinstance(value, list):
-                    value = [value]
-                input_value = st_tags(
-                    label=label,
-                    value=value,
-                    key=key,
-                )
+                input_value = handle_array_input(label, value, key)
             case input_type if isinstance(input_type, list) and not isinstance(
-                value, list
+                value,
+                list,
             ):
                 # input has multiple types and value is not a list => text_input can handle all remaining types
-                input_value = st.text_input(label=label, value=value, key=key)
-            case input_type if input_type == "string":
-                if not value.endswith((".tsv", ".csv", ".xlsx")):
-                    input_value = st.text_input(label=label, value=value, key=key)
-                else:
-                    input_value, show_data = data_selector(label, value, key, wd)
-                    data_key = key + "-data"
-                    # workaround for popver and expander "bug"
-                    st.session_state[key + "-placeholders"] = [
-                        st.empty() for _ in range(3)
-                    ]
-                    if show_data & isinstance(st.session_state[data_key], DataFrame):
-                        data_editor(st.session_state[data_key], key)
-            case input_type if input_type == "integer":
-                input_value = st.number_input(label=label, value=value, key=key)
-            case input_type if input_type == "number":
-                if "e" in str(value).lower():
-                    input_value = st.text_input(label=label, value=value, key=key)
-                else:
-                    input_value = st.number_input(
-                        label=label,
-                        value=value,
-                        key=key,
-                        step=10
-                        ** (
-                            -len(str(value).split(".")[-1]) if "." in str(value) else 0
-                        ),  # infer significant decimals
-                        format="%f",
-                    )
-            case input_type if input_type == "boolean":
+                input_value = handle_string_input(label, value, key, workflow_manager)
+            case "string":
+                input_value = handle_string_input(label, value, key, workflow_manager)
+            case "integer" | "number":
+                input_value, tag = handle_number_input(label, value, key)
+            case "boolean":
                 input_value = st.checkbox(label=label, value=value, key=key)
             case input_type if input_type == "missing":
                 # empty endpoints default to list
@@ -228,84 +252,18 @@ def get_input_element(
                 )
             case input_type:
                 st.error("No fitting input was found for your data!")
-    if required:
-        valid = validate_input(input_value, input_type)
-        # data inputs are validated in the data_editor and must not be overwritten here
-        if key not in st.session_state["workflow-config-form-valid"]:
-            st.session_state["workflow-config-form-valid"][key] = valid
-        if not valid:
-            report_invalid_input(input_value, key, input_type)
-    return input_value
+        # Needs to be updated this way as we never want to have the page rerun but still update the config for deposition
+        # Cannot be bound to on_change as st_tags does not support it
+        update_config_value(key, tag)
+    validate_and_report(input_value, input_type, key, required=required)
 
 
-def load_config_and_schema(conf_path, wd) -> tuple[dict, dict]:
-    """
-    Load configuration and schema.
+def report_invalid_input(value: any, key: str, input_type: str) -> None:
+    """Display an error message for invalid input values in the Streamlit app.
 
-    Parameters
-    ----------
-    conf_path : Path
-        The path to the configuration file.
-    wd : WorkflowDeployer
-        The workflow deployer object to get the JSON schema.
-
-    Returns
-    -------
-    tuple
-        The configuration and the final schema.
-    """
-    config_schema = wd.get_json_schema("config")
-    config = load_yaml(conf_path.read_text())
-    if config_schema:
-        final_schema = update_schema(config_schema, config)
-    else:
-        final_schema = infer_schema(config)
-    return config, final_schema
-
-
-def load_yaml(config: str) -> dict:
-    """
-    Load a YAML configuration file.
-
-    Parameters
-    ----------
-    config : str
-        The YAML configuration string.
-
-    Returns
-    -------
-    dict
-        The loaded configuration dictionary.
-
-    Raises
-    ------
-    st.error
-        If there is an error parsing the YAML or if the configuration is empty.
-    """
-    try:
-        config = yaml.load(config, Loader=yaml.SafeLoader)
-        assert config is not None
-        return config
-    except yaml.YAMLError as e:
-        st.error(f"Error parsing config YAML: {e}")
-        st.stop()
-    except AssertionError:
-        st.error("Configuration File is empty")
-        st.stop()
-
-
-def report_invalid_input(value: any, key: str, input_type: str):
-    """
-    Report an invalid input in the Streamlit app.
-
-    Parameters
-    ----------
-    value : any
-        The current value of the input element.
-    key : str
-        The key of the invalid input.
-    input_type : str
-        The type of the invalid input.
+    :param value: The current value of the input element.
+    :param key: The key associated with the invalid input.
+    :param input_type: The expected type of the input.
     """
     msg = ">".join(key.split(".")[1:])
     match input_type:
@@ -316,39 +274,21 @@ def report_invalid_input(value: any, key: str, input_type: str):
 
 
 def update_key(parent_key: str, new_key: str) -> str:
-    """
-    Update a key by appending a new key to a parent key.
+    """Append a new key to an existing parent key, forming a dot-separated string.
 
-    Parameters
-    ----------
-    parent_key : str
-        The parent key.
-    new_key : str
-        The new key to append.
-
-    Returns
-    -------
-    str
-        The updated key.
+    :param parent_key: The existing key string.
+    :param new_key: The new key to append.
+    :return: The concatenated key string.
     """
-    return ".".join((parent_key, new_key)) if parent_key != "" else new_key
+    return f"{parent_key}.{new_key}" if parent_key != "" else new_key
 
 
 def validate_input(value: any, input_type: str) -> bool:
-    """
-    Validate an input value based on its type.
+    """Validate a value based on its expected input type.
 
-    Parameters
-    ----------
-    value : any
-        The value to validate.
-    input_type : str
-        The type of the input value.
-
-    Returns
-    -------
-    bool
-        True if the value is valid, False otherwise.
+    :param value: The value to validate.
+    :param input_type: The expected type of the value.
+    :return: True if the value is valid, False otherwise.
     """
     match input_type:
         case typing if typing == "boolean":
@@ -360,6 +300,6 @@ def validate_input(value: any, input_type: str) -> bool:
         case typing if typing == "number":
             if "e" in str(value).lower():
                 return True
-            if not isinstance(value, (int, float)):
+            if not isinstance(value, int | float):
                 return False
     return True

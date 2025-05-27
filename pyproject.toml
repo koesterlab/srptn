@@ -28,12 +28,14 @@ srptn = { path = ".", editable = true }
 [tool.pixi.dependencies]
 tmux = ">=3.5,<4"
 
-[tool.pixi.feature.test]
-pypi-dependencies = {pytest = "*"}
-tasks = {test = "pytest -v"}
+[tool.pixi.feature.dev]
+pypi-dependencies = {pytest = "*", ruff = "*", pyright = "*"}
 
 [tool.pixi.environments]
-test = ["test"]
+dev = ["dev"]
 
 [tool.pixi.tasks]
 srptn = "streamlit run src/srptn/home.py"
+tests = "pytest -v"
+fmt = "ruff format src tests"
+lint = "ruff check src tests"

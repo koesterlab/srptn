@@ -1,16 +1,16 @@
 import streamlit as st
 
-from common.components.config_editor import (
+from srptn.common.components.config_editor import (
     ace_config_editor,
     config_editor,
 )
-from common.components.schemas import (
+from srptn.common.components.schemas import (
     infer_schema,
     update_schema,
 )
-from common.components.ui_components import persistent_text_input
-from common.data import Address, DataStore
-from common.data.entities.analysis import WorkflowManager
+from srptn.common.components.ui_components import persistent_text_input
+from srptn.common.data import Address, DataStore
+from srptn.common.data.entities.analysis import WorkflowManager
 
 
 def workflow_selector(

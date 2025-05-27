@@ -3,10 +3,10 @@ import streamlit as st
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 from streamlit_ace import THEMES, st_ace
 
-from common.components.schemas import infer_schema, update_schema
-from common.components.ui_components import toggle_button
-from common.data.entities.analysis import WorkflowManager
-from common.utils.polars_utils import (
+from srptn.common.components.schemas import infer_schema, update_schema
+from srptn.common.components.ui_components import toggle_button
+from srptn.common.data.entities.analysis import WorkflowManager
+from srptn.common.utils.polars_utils import (
     enforce_typing,
     get_type_specific_default,
     load_data_table,

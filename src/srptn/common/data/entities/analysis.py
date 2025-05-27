@@ -8,12 +8,12 @@ import streamlit as st
 import yaml
 from snakedeploy.deploy import WorkflowDeployer
 
-from common.components.logs import log_selector
-from common.data import Address, DataStore, Entity, FileType
-from common.data.entities.dataset import Dataset
-from common.tmux import TmuxSessionManager
-from common.utils.polars_utils import load_data_table, save_data_table
-from common.utils.yaml_utils import CustomSafeDumper, CustomSafeLoader
+from srptn.common.components.logs import log_selector
+from srptn.common.data import Address, DataStore, Entity, FileType
+from srptn.common.data.entities.dataset import Dataset
+from srptn.common.tmux import TmuxSessionManager
+from srptn.common.utils.polars_utils import load_data_table, save_data_table
+from srptn.common.utils.yaml_utils import CustomSafeDumper, CustomSafeLoader
 
 
 @dataclass

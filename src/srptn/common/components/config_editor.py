@@ -7,10 +7,10 @@ from polars import DataFrame
 from streamlit_ace import st_ace
 from streamlit_tags import st_tags
 
-from common.components.data_editor import data_editor, data_selector
-from common.components.schemas import get_property_type
-from common.data.entities.analysis import WorkflowManager
-from common.utils.yaml_utils import CustomSafeLoader
+from srptn.common.components.data_editor import data_editor, data_selector
+from srptn.common.components.schemas import get_property_type
+from srptn.common.data.entities.analysis import WorkflowManager
+from srptn.common.utils.yaml_utils import CustomSafeLoader
 
 
 def ace_config_editor(

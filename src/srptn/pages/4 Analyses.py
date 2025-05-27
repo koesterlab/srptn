@@ -1,6 +1,6 @@
-from common.components.entities import entity_browser
-from common.data.entities.analysis import Analysis
-from common.data.fs import FSDataStore
+from srptn.common.components.entities import entity_browser
+from srptn.common.data.entities.analysis import Analysis
+from srptn.common.data.fs import FSDataStore
 
 owner = "koesterlab"
 data = FSDataStore()

@@ -1,12 +1,12 @@
 import polars as pl
 import streamlit as st
 
-from common.components.categories import category_editor
-from common.components.descriptions import desc_editor
-from common.data import Address
-from common.data.entities.dataset import Dataset
-from common.data.fs import FSDataStore
-from common.utils.polars_utils import load_data_table
+from srptn.common.components.categories import category_editor
+from srptn.common.components.descriptions import desc_editor
+from srptn.common.data import Address
+from srptn.common.data.entities.dataset import Dataset
+from srptn.common.data.fs import FSDataStore
+from srptn.common.utils.polars_utils import load_data_table
 
 owner = "koesterlab"
 data_store = FSDataStore()

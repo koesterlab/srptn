@@ -1506,7 +1506,7 @@ packages:
 - pypi: ./
   name: srptn
   version: 0.1.0
-  sha256: f8bbaf89b5116e0da3484699a779ee974acd4a69e836f1b666b1f0c69387c0fe
+  sha256: 9a85132c83563a137433347638bcad0e9a947b6ca150f9848ebc17acdbf526ad
   requires_dist:
   - streamlit>=1.45.1,<2
   - humanfriendly>=10.0,<11

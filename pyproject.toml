@@ -38,4 +38,4 @@ dev = ["dev"]
 srptn = "streamlit run src/srptn/home.py"
 tests = "pytest -v"
 fmt = "ruff format src tests"
-lint = "ruff check src tests"
+lint = "ruff check src tests && pyright src tests"

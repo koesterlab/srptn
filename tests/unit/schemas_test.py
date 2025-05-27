@@ -4,7 +4,7 @@ import polars as pl
 import pytest
 import yaml
 
-from common.components import schemas
+from srptn.common.components import schemas
 
 
 @pytest.mark.parametrize(

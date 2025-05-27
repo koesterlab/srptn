@@ -2,7 +2,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from common.data import Address, DataStore
+from srptn.common.data import Address, DataStore
 
 
 def log_selector(data_store: DataStore, address: Address) -> str | None:

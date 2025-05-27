@@ -1,7 +1,7 @@
 import streamlit as st
 
-from common.components.ui_components import persistent_multiselect
-from common.data import DataStore, Entity
+from srptn.common.components.ui_components import persistent_multiselect
+from srptn.common.data import DataStore, Entity
 
 
 def entity_browser(

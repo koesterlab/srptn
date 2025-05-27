@@ -4,8 +4,8 @@ from dataclasses import dataclass
 import polars as pl
 import streamlit as st
 
-from common.components.files import file_browser
-from common.data import Address, DataStore, Entity, FileType
+from srptn.common.components.files import file_browser
+from srptn.common.data import Address, DataStore, Entity, FileType
 
 
 @dataclass

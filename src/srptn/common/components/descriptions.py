@@ -1,6 +1,6 @@
 import streamlit as st
 
-from common.components.ui_components import persistent_text_area
+from srptn.common.components.ui_components import persistent_text_area
 
 
 def desc_editor(key: str) -> str:

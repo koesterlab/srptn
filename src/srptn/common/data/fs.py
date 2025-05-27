@@ -5,7 +5,7 @@ from pathlib import Path
 
 import polars as pl
 
-from common.data import Address, DataStore, Entity, FileType
+from srptn.common.data import Address, DataStore, Entity, FileType
 
 
 @dataclass(slots=True)

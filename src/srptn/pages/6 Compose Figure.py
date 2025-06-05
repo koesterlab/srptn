@@ -1,6 +1,7 @@
 import streamlit as st
 from streamlit_sortables import sort_items
 
+
 def select_items(items=None, id=None):
     if items is None:
         items = [
@@ -25,8 +26,10 @@ if input_files:
         sorted_files = sort_items(input_files)
 
     scaled = {}
+
     def scaled_items():
         return {f for subset in scaled for f in subset}
+
     def unscaled_items():
         return [f for f in input_files if f not in scaled_items()]
 

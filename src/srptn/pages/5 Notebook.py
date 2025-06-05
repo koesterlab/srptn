@@ -6,7 +6,7 @@ input_files = st.multiselect(
     [
         "results/normalized_gene_expressions.csv",
         "results/diffexp_genes.csv",
-    ]
+    ],
 )
 
 output_file = st.text_input("Output file")

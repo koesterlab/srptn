@@ -121,7 +121,7 @@ properties:
     properties:
       labels:
         items:
-          type: missing
+          type: string
         type: array
     type: object
   plot_vars:

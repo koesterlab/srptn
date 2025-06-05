@@ -1,12 +1,13 @@
 import polars as pl
+import polars.selectors as cs
 import streamlit as st
 
-from common.components.categories import category_editor
-from common.components.descriptions import desc_editor
-from common.data import Address
-from common.data.entities.dataset import Dataset
-from common.data.fs import FSDataStore
-from common.utils.polars_utils import load_data_table
+from srptn.common.components.categories import category_editor
+from srptn.common.components.descriptions import desc_editor
+from srptn.common.data import Address
+from srptn.common.data.entities.dataset import Dataset
+from srptn.common.data.fs import FSDataStore
+from srptn.common.utils.polars_utils import load_data_table
 
 owner = "koesterlab"
 data_store = FSDataStore()
@@ -36,7 +37,7 @@ if sheet:
     st.dataframe(sheet)
 
     for f in files:
-        if not sheet.select(pl.any_horizontal((pl.all() == f.name).any())).item():
+        if not sheet.select(pl.any_horizontal((cs.string() == f.name).any())).item():
             st.error(f"Uploaded file {f.name} not found in sample sheet")
             st.stop()
 

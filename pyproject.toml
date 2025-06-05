@@ -12,7 +12,7 @@ dependencies = [
     "streamlit-ace>=0.1.1,<0.2",
     "packaging>=21.0,<22.0",
     "setuptools>=80.8.0,<81"
-, "streamlit-tags>=1.2.8,<2", "polars>=1.30.0,<2"]
+, "streamlit-tags>=1.2.8,<2", "polars>=1.30.0,<2", "streamlit-sortables>=0.3.1,<0.4"]
 
 [build-system]
 build-backend = "hatchling.build"
@@ -35,7 +35,7 @@ pypi-dependencies = {pytest = "*", ruff = "*", pyright = "*"}
 dev = ["dev"]
 
 [tool.pixi.tasks]
-srptn = "streamlit run src/srptn/home.py"
+server = "streamlit run src/srptn/home.py"
 tests = "pytest -v"
 fmt = "ruff format src tests"
 lint = "ruff check src tests"

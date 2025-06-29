@@ -1,4 +1,5 @@
-"""from common.data import DataStore.
+"""
+from common.data import DataStore.
 
 class S3DataStore(DataStore):
     # TODO use policies to restrict access to objects based on owner who is logged in

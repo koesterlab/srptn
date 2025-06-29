@@ -1,14 +1,14 @@
 import streamlit as st
 
-from common.components.categories import category_editor
-from common.components.descriptions import desc_editor
-from common.components.entities import entity_selector
-from common.components.ui_components import persistent_text_input
-from common.components.workflows import workflow_editor, workflow_selector
-from common.data import Address
-from common.data.entities.analysis import Analysis, WorkflowManager
-from common.data.entities.dataset import Dataset
-from common.data.fs import FSDataStore
+from srptn.common.components.categories import category_editor
+from srptn.common.components.descriptions import desc_editor
+from srptn.common.components.entities import entity_selector
+from srptn.common.components.ui_components import persistent_text_input
+from srptn.common.components.workflows import workflow_editor, workflow_selector
+from srptn.common.data import Address
+from srptn.common.data.entities.analysis import Analysis, WorkflowManager
+from srptn.common.data.entities.dataset import Dataset
+from srptn.common.data.fs import FSDataStore
 
 owner = "koesterlab"
 data_store = FSDataStore()
@@ -28,7 +28,7 @@ if data_store.has_entity(address):
 
 desc = desc_editor("workflow-meta")
 
-datasets = entity_selector(data_store, Dataset, "workflow-meta-datasets")
+datasets = entity_selector(data_store, "dataset", "workflow-meta-datasets")
 
 if not categories or not analysis_name:
     st.stop()
@@ -41,15 +41,14 @@ def store_analysis(
     desc: str,
     datasets: list[Dataset],
     workflow_manager: WorkflowManager,
-    data_store: data_store,
+    data_store: FSDataStore,
 ) -> None:
     """Store the analysis."""
     valid = True
-    if st.session_state.get("workflow-config-form-valid"):
+    config_form_status = st.session_state.get("workflow-config-form-valid", {})
+    if config_form_status:
         invalid_fields = [
-            key
-            for key, value in st.session_state.get("workflow-config-form-valid").items()
-            if value is False
+            key for key, value in config_form_status.items() if value is False
         ]
         if invalid_fields:
             invalid_fields_str = ", ".join(invalid_fields)

@@ -1,4 +1,5 @@
 import re
+from typing import IO
 
 import yaml
 
@@ -6,18 +7,21 @@ import yaml
 class CustomSafeLoader(yaml.SafeLoader):
     """Custom YAML loader."""
 
-    def __init__(self, *args: tuple, **kwargs: dict) -> None:
+    def __init__(self, stream: IO[str], **kwargs) -> None:
         """Initialize the custom YAML loader."""
-        super().__init__(*args, **kwargs)
-        self.add_constructor("tag:yaml.org,2002:float", self.scientificfloat_as_string)
+        super().__init__(stream, **kwargs)
+        self.add_constructor(
+            "tag:yaml.org,2002:float",
+            self.scientificfloat_as_string,
+        )
 
     def scientificfloat_as_string(
         self,
         _: yaml.Loader,
-        node: yaml.nodes.Node,
+        node: yaml.nodes.ScalarNode,
     ) -> str | float:
         """Load scientific floats as strings if in scientific notation."""
-        value = self.construct_scalar(node)
+        value = self.construct_scalar(node) if node else ""
         # Check if the value looks like a float in scientific notation
         if re.match(r"^\d+(\.\d+)?[eE][-+]?\d+$", value):
             return value
@@ -27,14 +31,14 @@ class CustomSafeLoader(yaml.SafeLoader):
 class CustomSafeDumper(yaml.SafeDumper):
     """Custom YAML dumper."""
 
-    def __init__(self, *args: tuple, **kwargs: dict) -> None:
+    def __init__(self, stream: IO[str], **kwargs) -> None:
         """Initialize the custom YAML dumper."""
-        super().__init__(*args, **kwargs)
+        super().__init__(stream, **kwargs)  # kwargs required to not crash
         self.add_representer(str, self.scientificfloat_from_string_as_float)
 
     def scientificfloat_from_string_as_float(
         self,
-        _: yaml.Dumper,
+        _: "CustomSafeDumper",
         value: str,
     ) -> yaml.nodes.ScalarNode:
         """Dump scientific float from a string to yaml as float."""

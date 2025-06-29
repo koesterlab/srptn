@@ -1,4 +1,5 @@
 import re
+from collections.abc import Iterable
 from math import isnan
 
 import polars as pl
@@ -6,14 +7,15 @@ import streamlit as st
 
 
 def get_nonan_index(value: pl.Series | list) -> int | None:
-    """Find the index of the first non-NaN value in the list.
+    """
+    Find the index of the first non-NaN value in the list.
 
     :param value: A list of values to search for the first non-NaN value.
     :return: The index of the first non-NaN value in the list, or None if all values
     are NaN.
     """
 
-    def isna(value: any) -> bool:
+    def isna(value: Iterable[object]) -> bool:
         return not value or (isinstance(value, float) and isnan(value))
 
     for idx, v in enumerate(value):
@@ -23,7 +25,8 @@ def get_nonan_index(value: pl.Series | list) -> int | None:
 
 
 def get_property_type(schema: dict) -> str | None:
-    """Determine the property type key in a schema dictionary.
+    """
+    Determine the property type key in a schema dictionary.
 
     :param schema: A dictionary representing the schema.
     :return: The key of the property type in the schema, either "properties" or
@@ -42,7 +45,8 @@ def get_property_type(schema: dict) -> str | None:
 
 
 def infer_schema(config: dict) -> dict:
-    """Infer a JSON schema from a configuration dictionary.
+    """
+    Infer a JSON schema from a configuration dictionary.
 
     :param config: The configuration dictionary to infer the schema from.
     :return: The inferred JSON schema.
@@ -57,7 +61,8 @@ def infer_schema(config: dict) -> dict:
 
 
 def infer_type(value: pl.Series | list | bool | float | str | None) -> dict:
-    """Infer the JSON schema type for a given value.
+    """
+    Infer the JSON schema type for a given value.
 
     :param value: The value for which to infer the type.
     :return: The inferred JSON schema type definition.
@@ -95,7 +100,8 @@ def infer_type(value: pl.Series | list | bool | float | str | None) -> dict:
 
 
 def update_schema(schema: dict, config: dict) -> dict:
-    """Update a JSON schema based on a config dictionary.
+    """
+    Update a JSON schema based on a config dictionary.
 
     :param schema: The existing JSON schema to be updated.
     :param config: The config dictionary used to update the schema.

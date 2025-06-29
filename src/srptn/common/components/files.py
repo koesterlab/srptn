@@ -4,9 +4,10 @@ from humanfriendly import format_size
 
 
 def file_browser(files: pl.DataFrame) -> None:
-    """Display a file browser with file names and formatted sizes.
+    """
+    Display a file browser with file names and formatted sizes.
 
-    :param files: A DataFrame containing file metadata, including columns for "name" and "size".
+    :param files: A DataFrame containing file metadata.
     """
     files = files.with_columns(
         [

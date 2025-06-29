@@ -146,8 +146,10 @@ class WorkflowManager:
 
     def get_log(self, log_file_name: Path) -> str:
         """Load log file for specified log file name."""
-        with (self.log_path / log_file_name).open("r") as file:
-            return file.read()
+        if self.log_path:
+            with (self.log_path / log_file_name).open("r") as file:
+                return file.read()
+        return ""
 
     def get_log_names(self) -> list[str]:
         """Gather names of all available logs."""
@@ -158,11 +160,11 @@ class WorkflowManager:
     def get_schema(self, item: str) -> dict | None:
         """Load schema for specified item."""
         for ext in ("yaml", "yml", "json"):
-            path = self.schema_dir / f"{item}.schema.{ext}"
+            path = self.schema_dir / Path(f"{item}.schema.{ext}")
             if path.exists():
                 if ext != "json":
                     return yaml.load(path.read_text(), Loader=CustomSafeLoader)
-                return json.load(path.read_text())
+                return json.loads(path.read_text())
         return None
 
     def update_configs_from_session_state(self) -> None:
@@ -180,14 +182,16 @@ class WorkflowManager:
 
     def write_config(self, config: dict) -> None:
         """Overwrite configuration file."""
-        with self.config_path.open("w") as f:
-            f.write(yaml.dump(config, sort_keys=False, Dumper=CustomSafeDumper))
+        if self.config_path:
+            with self.config_path.open("w") as f:
+                f.write(yaml.dump(config, sort_keys=False, Dumper=CustomSafeDumper))
 
 
 class AnalysisRuntimeManager:
     """Manages workflow execution in tmux sessions."""
 
     def __init__(self, analysis_name: str) -> None:
+        """Create an analysis runtime manager for an analysis."""
         self.analysis_name: str = analysis_name
         self.session_name: str = f"{analysis_name}_session"
         self.tmux_manager: TmuxSessionManager = TmuxSessionManager()
@@ -221,7 +225,8 @@ class AnalysisRuntimeManager:
         """Start analysis in new tmux session."""
         session = self.tmux_manager.create_session(self.session_name)
         session.active_window.resize(width=500)  # Extra wide for no artificial \n
-        session.active_pane.send_keys(command)
+        if session.active_pane:
+            session.active_pane.send_keys(command)
 
 
 @dataclass
@@ -247,10 +252,13 @@ class Analysis(Entity):
             log_selector(self.workflow_manager.data_store, self.address)
 
         c1, c2 = st.columns([0.21, 0.79])
-        if c1.button("Run Analysis", key=f"{self.address.__str__}-run_button"):
+        if (
+            c1.button("Run Analysis", key=f"{self.address.__str__}-run_button")
+            and self.analysis_run_manager
+        ):
             command = f"cd {self.workflow_manager.data_path} && snakemake -c 2"
             self.analysis_run_manager.launch_analysis(command)
-        if c2.button(
+        if self.analysis_run_manager and c2.button(
             "Check Status",
             key=f"{self.analysis_run_manager.analysis_name}-status_open",
         ):
@@ -266,7 +274,7 @@ class Analysis(Entity):
             if f["name"].endswith(".parquet")
         ]
         workflow_manager = WorkflowManager.load(data_store, address)
-        analysis_run_manager = AnalysisRuntimeManager(address)
+        analysis_run_manager = AnalysisRuntimeManager(str(address))
         return cls(address, desc, datasets, workflow_manager, analysis_run_manager)
 
     def store(self, data_store: DataStore) -> None:
@@ -275,11 +283,12 @@ class Analysis(Entity):
         dataset_entities = {}
         for dataset in self.datasets:
             dataset_entities[str(dataset.address)] = dataset.list_files(FileType.DATA)
-            data_store.store_sheet(
-                self.address,
-                dataset.sheet,
-                dataset.address.to_filename(),
-            )
+            if dataset and isinstance(dataset.sheet, pl.DataFrame):
+                data_store.store_sheet(
+                    self.address,
+                    dataset.sheet,
+                    dataset.address.to_filename(),
+                )
 
         self.workflow_manager.update_configs_from_session_state()
         for path_obj in self.workflow_manager.data_path.rglob("*"):
@@ -290,7 +299,11 @@ class Analysis(Entity):
                 del st.session_state[key]
         st.session_state["workflow-refresh"] = True  # Removing cache of the workflow
 
-    def update_data_paths(self, path_obj: Path, dataset_entities: dict[list]) -> None:
+    def update_data_paths(
+        self,
+        path_obj: Path,
+        dataset_entities: dict[str, pl.DataFrame],
+    ) -> None:
         """Update dataset paths in data tables."""
         data = load_data_table(path_obj)
         updated_groups = []
@@ -299,23 +312,25 @@ class Analysis(Entity):
             if not datasetid:
                 updated_groups.append(group)
                 continue
-            dataset_entries = dataset_entities.get(datasetid[0], [])["name"].to_list()
-            updated_group = group.with_columns(
-                [
-                    pl.when(pl.col(col).is_in(dataset_entries).all())
-                    .then(
-                        pl.format(
-                            relative_to_analysis + "/{}/{}",
-                            pl.col("datasetid"),
-                            col,
-                        ),
-                    )
-                    .otherwise(col)
-                    .alias(col)
-                    for col in group.columns
-                ],
-            )
-            updated_groups.append(updated_group)
+            datasetid_name = datasetid[0]
+            if isinstance(datasetid_name, str):
+                dataset_entries = dataset_entities[datasetid_name]["name"].to_list()
+                updated_group = group.with_columns(
+                    [
+                        pl.when(pl.col(col).is_in(dataset_entries).all())
+                        .then(
+                            pl.format(
+                                relative_to_analysis + "/{}/{}",
+                                pl.col("datasetid"),
+                                col,
+                            ),
+                        )
+                        .otherwise(col)
+                        .alias(col)
+                        for col in group.columns
+                    ],
+                )
+                updated_groups.append(updated_group)
 
         updated_data = (
             pl.concat(updated_groups) if len(updated_groups) > 1 else updated_groups[0]

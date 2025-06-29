@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+
 import polars as pl
 import streamlit as st
 from streamlit.runtime.uploaded_file_manager import UploadedFile
@@ -15,7 +17,8 @@ from srptn.common.utils.polars_utils import (
 
 
 def add_column(key: str) -> None:
-    """Add a new column to the dataframe.
+    """
+    Add a new column to the dataframe.
 
     :param key: The key for the Streamlit session state.
     """
@@ -40,7 +43,8 @@ def add_column(key: str) -> None:
 
 
 def clear_data(key: str) -> None:
-    """Clear all rows of the dataframe.
+    """
+    Clear all rows of the dataframe.
 
     :param key: The key for the Streamlit session state.
     """
@@ -59,7 +63,8 @@ def clear_data(key: str) -> None:
 
 
 def custom_upload(key: str) -> None:
-    """Upload a custom configuration file and replace the dataframe.
+    """
+    Upload a custom configuration file and replace the dataframe.
 
     :param key: The key for the Streamlit session state.
     """
@@ -67,7 +72,6 @@ def custom_upload(key: str) -> None:
     def upload(uploaded_file: UploadedFile) -> None:
         st.session_state[f"{key}-data"] = load_data_table(
             uploaded_file,
-            source="upload",
         )
 
     with st.popover("", icon=":material/upload:", help="Upload a config"):
@@ -85,13 +89,12 @@ def custom_upload(key: str) -> None:
 
 
 def data_editor(key: str) -> None:
-    """Provide an interface for editing a dataframe with various options.
+    """
+    Provide an interface for editing a dataframe with various options.
 
     :param key: The key for the Streamlit session state.
     """
-    col1, col2, col3, col4, col5, col6 = st.session_state[f"{key}-placeholders"][
-        0
-    ].columns(6)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         add_column(key)
     with col2:
@@ -105,8 +108,12 @@ def data_editor(key: str) -> None:
     with col6:
         clear_data(key)
     process_user_code(key)
-    dataset_ids = list(st.session_state.get("workflow-meta-datasets-sheets"))
-    st.session_state[f"{key}-placeholders"][2].data_editor(
+
+    dataset_sheets = st.session_state.get("workflow-meta-datasets-sheets")
+    dataset_ids = (
+        list(dataset_sheets.keys()) if isinstance(dataset_sheets, dict) else None
+    )
+    st.data_editor(
         st.session_state[f"{key}-data"],
         use_container_width=True,
         num_rows="dynamic",
@@ -117,7 +124,6 @@ def data_editor(key: str) -> None:
             "datasetid": st.column_config.SelectboxColumn(
                 "datasetid",
                 options=dataset_ids,
-                default=dataset_ids[0] if dataset_ids else None,
             ),
         },
     )
@@ -130,7 +136,7 @@ def generate_from_to_fields(
     to_col: str,
     key: str,
     data_selected: pl.DataFrame,
-) -> tuple[str]:
+) -> tuple[str, str]:
     """Generate UI for selecting 'From' and 'To' column pairs."""
     cols = st.columns([3, 3, 1])
     with cols[0]:
@@ -198,7 +204,10 @@ def validate_and_cast_columns(
                 column_to_add = column_to_add.cast(data_modified.schema[to_col])
             except pl.InvalidOperationError:
                 st.error(
-                    f"Failed to cast column '{from_col}' to match the existing '{to_col}' type",
+                    f"""
+                        Failed to cast column '{from_col}' to match the existing
+                         '{to_col}' type
+                    """,
                 )
                 st.stop()
     else:
@@ -217,6 +226,7 @@ def data_fill(key: str) -> None:
     """Fill the configuration file with data from a selected dataset."""
     with st.popover("", icon=":material/library_add:"):
         selected = None
+        dataset = None
         if "workflow-meta-datasets-sheets" in st.session_state:
             dataset = st.session_state.get("workflow-meta-datasets-sheets")
             if dataset:
@@ -225,7 +235,11 @@ def data_fill(key: str) -> None:
                     options=list(dataset),
                     key=f"{key}-fill_data_select",
                 )
-        if selected:
+        if (
+            selected
+            and isinstance(dataset, dict)
+            and all(isinstance(item, pl.DataFrame) for item in dataset.values())
+        ):
             data_selected = dataset[selected]
             data_modified = st.session_state[f"{key}-data"].clone()
 
@@ -258,7 +272,7 @@ def data_fill(key: str) -> None:
                 )
                 columns_to_add.append(column_to_add)
 
-            if columns_to_add:
+            if isinstance(columns_to_add, list):
                 data_modified = merge_dataframes(
                     data_modified,
                     columns_to_add,
@@ -282,13 +296,14 @@ def data_selector(
     key: str,
     workflow_manager: WorkflowManager,
 ) -> tuple[str, bool]:
-    """Create a data selector widget in Streamlit.
+    """
+    Create a data selector widget in Streamlit.
 
     :param label: The label for the text input widget.
     :param value: The initial value of the text input.
     :param key: The key to store the text input value in Streamlit's session state.
     :param workflow_manager: An object providing data-related functions.
-    :return: A tuple containing the input value and a boolean indicating whether to show the data editor.
+    :return: A tuple with the input value and a boolean to hide the data editor.
     """
     st.text(label)
     col1, col2 = st.columns([9, 1])
@@ -344,7 +359,8 @@ def data_selector(
 
 
 def delete_column(key: str) -> None:
-    """Delete a column from the dataframe.
+    """
+    Delete a column from the dataframe.
 
     :param key: The key for the Streamlit session state.
     """
@@ -374,13 +390,15 @@ def execute_custom_code(
     key: str,
     user_code: str,
     mode: str,
-) -> pl.DataFrame | None:
-    """Execute custom code provided by the user on the dataframe.
+) -> None:
+    """
+    Execute custom code provided by the user on the dataframe.
 
     :param data: The dataframe on which the custom code will be executed.
     :param user_code: The custom code to execute on the dataframe.
     :param mode: The mode to determine whether the result should be applied or returned.
-    :return: The dataframe after the custom code has been executed, or None if mode is 'apply'.
+    :return: The dataframe after the custom code has been executed, or None if mode
+     is 'apply'.
     """
     user_code = "import polars as pl\nimport numpy as np\n" + user_code
     local_vars = {}
@@ -388,7 +406,8 @@ def execute_custom_code(
         (k, value)
         for k, value in st.session_state.items()
         if (
-            k.startswith("workflow-config-")
+            isinstance(k, str)
+            and k.startswith("workflow-config-")
             and k.endswith("-data")
             and isinstance(value, pl.DataFrame)
             and f"{key}-data" != k
@@ -404,12 +423,13 @@ def execute_custom_code(
         st.error("The returned object is not a Polars DataFrame.")
     if mode == "apply":
         st.session_state[f"{key}-data"] = data
-        return None
-    return data
+        return
+    st.session_state[f"{key}-datapreview"] = data
 
 
 def modify_schema(schema: dict, key: str) -> dict:
-    """Rename a column in the dataframe schema.
+    """
+    Rename a column in the dataframe schema.
 
     :param schema: The data schema.
     :param key: The key for the Streamlit session state.
@@ -427,7 +447,7 @@ def modify_schema(schema: dict, key: str) -> dict:
             key=f"{key}-modify_column_text",
         )
         rename = st.button("Rename", key=f"{key}-modify_column_button")
-        if rename and renamed.strip():
+        if rename and isinstance(renamed, str) and renamed.strip():
             schema["properties"][renamed] = schema["properties"].pop(selected)
             if selected in schema["required"]:
                 schema["required"] = [
@@ -437,15 +457,18 @@ def modify_schema(schema: dict, key: str) -> dict:
 
 
 def process_user_code(key: str) -> None:
-    """Modify the dataframe using user-provided Python code.
+    """
+    Modify the dataframe using user-provided Python code.
 
     :param key: The key for the Streamlit session state that identifies the data.
     """
-    with st.session_state[f"{key}-placeholders"][1].expander(
+    with st.expander(
         "Advanced table modification",
         expanded=True,
     ):
-        acestring = "# The table is available as df: pl.DataFrame\n# All other tables are accessible through their file name\n"
+        acestring = """# The table is available as df: pl.DataFrame\n
+# All other tables are accessible through their file name\n
+        """
 
         c1, c2 = st.columns([3.25, 1])
         with c1:
@@ -502,8 +525,9 @@ def process_user_code(key: str) -> None:
             )
         if preview:
             preview_data = st.session_state[f"{key}-data"].clone()
-            # returned again as preview_data does not need to be placed in session state
-            preview_data = execute_custom_code(preview_data, key, user_code, "preview")
+            st.session_state[f"{key}-datapreview"] = preview_data
+            execute_custom_code(preview_data, key, user_code, "preview")
+            preview_data = st.session_state[f"{key}-datapreview"]
             st.dataframe(
                 preview_data,
                 use_container_width=True,
@@ -513,7 +537,8 @@ def process_user_code(key: str) -> None:
 
 
 def rename_column(key: str) -> None:
-    """Rename a column in the dataframe.
+    """
+    Rename a column in the dataframe.
 
     :param key: The key for the Streamlit session state that identifies the data.
     """
@@ -546,7 +571,8 @@ def rename_column(key: str) -> None:
 
 
 def update_data(key: str) -> None:
-    """Update the data in the session state based on user edits.
+    """
+    Update the data in the session state based on user edits.
 
     :param key: The key for the Streamlit session state that identifies the data.
     """
@@ -562,10 +588,12 @@ def update_data(key: str) -> None:
 
 
 def validate_data(key: str, data: pl.DataFrame | None = None) -> None:
-    """Validate a dataset against its associated schema.
+    """
+    Validate a dataset against its associated schema.
 
-    :param key: The key for the Streamlit session state identifying the dataset and schema.
-    :param data: The dataset to be validated. If not provided, it will be fetched from the Streamlit session state.
+    :param key: The key for the Streamlit session state for the dataset and schema.
+    :param data: The dataset to be validated. If None, it will be fetched from
+     the Streamlit session state.
     """
     st.session_state["workflow-config-form-valid"][key] = True
 
@@ -602,7 +630,8 @@ def validate_data(key: str, data: pl.DataFrame | None = None) -> None:
 
 
 def report_missing_required_field(key: str, field: str) -> None:
-    """Report a missing required field.
+    """
+    Report a missing required field.
 
     :param key: The key for the Streamlit session state identifying the dataset.
     :param field: The missing field name.
@@ -619,7 +648,8 @@ def validate_column_data(
     *,
     is_required: bool,
 ) -> None:
-    """Validate a single column against its schema definition.
+    """
+    Validate a single column against its schema definition.
 
     :param key: The key for the Streamlit session state identifying the dataset.
     :param field: The name of the column being validated.
@@ -628,7 +658,7 @@ def validate_column_data(
     :param is_required: Whether the field is marked as required.
     """
 
-    def is_value_valid(value: any, expected_type: str) -> bool:
+    def is_value_valid(value: Iterable[object], expected_type: str) -> bool:
         match expected_type:
             case "boolean":
                 return str(value).lower() in {"true", "false", "0", "1"}

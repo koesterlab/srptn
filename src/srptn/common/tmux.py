@@ -2,6 +2,7 @@ from threading import Lock
 
 import libtmux
 import streamlit as st
+from libtmux.exc import LibTmuxException
 
 
 class TmuxServer:
@@ -30,6 +31,7 @@ class TmuxSessionManager:
     """Handles tmux session lifecycle management."""
 
     def __init__(self) -> None:
+        """Create a tmux server instance."""
         self.server = TmuxServer.get_instance()
 
     def get_session(self, session_name: str) -> libtmux.Session | None:
@@ -58,10 +60,10 @@ class TmuxSessionManager:
         """Capture pane output from a tmux session."""
         try:
             session = self.get_session(session_name)
-            if not session:
+            if not session or not session.active_pane:
                 return None
             # Captures both stdout and stderr
             return "\n".join(session.active_pane.capture_pane(start=-10000))
-        except libtmux.exc.LibTmuxException as e:
+        except LibTmuxException as e:
             st.error(f"Failed to capture tmux output: {e.__str__}")
             return None

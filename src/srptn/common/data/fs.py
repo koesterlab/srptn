@@ -2,6 +2,7 @@ import io
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from shutil import rmtree
 
 import polars as pl
 
@@ -17,8 +18,8 @@ class FSDataStore(DataStore):
 
     def clean(self, address: Address) -> None:
         """Remove metadata and data files associated with the given address."""
-        self.files_path(address, FileType.META).unlink(missing_ok=True)
-        self.files_path(address, FileType.DATA).unlink(missing_ok=True)
+        rmtree(self.files_path(address, FileType.META), ignore_errors=True)
+        rmtree(self.files_path(address, FileType.DATA), ignore_errors=True)
 
     def load_sheet(self, address: Address, sheet_name: str) -> pl.DataFrame:
         """Load a sample sheet as a Polars DataFrame from the given address."""
@@ -35,13 +36,13 @@ class FSDataStore(DataStore):
     def load_file(
         self,
         address: Address,
-        file_path: str,
+        file_path: Path,
         file_type: FileType,
-    ) -> io.IOBase:
+    ) -> io.BufferedReader:
         """Load a file of a specific type from the given address."""
         return (self.files_path(address, file_type) / file_path).open("rb")
 
-    def has_file(self, address: Address, file_path: str, file_type: FileType) -> bool:
+    def has_file(self, address: Address, file_path: Path, file_type: FileType) -> bool:
         """Check if a file exists for the given address, path, and file type."""
         return (self.files_path(address, file_type) / file_path).exists()
 
@@ -64,7 +65,7 @@ class FSDataStore(DataStore):
         self,
         address: Address,
         file: io.IOBase,
-        file_path: str,
+        file_path: Path,
         file_type: FileType,
     ) -> None:
         """Store a file of a specific type at the given address."""
@@ -107,8 +108,8 @@ class FSDataStore(DataStore):
         )
         addr = [a for a in addr if a.entity_type == entity_type]
 
-        def take_all(_: any) -> bool:
-            return True
+        def take_all(entity: Entity) -> bool:
+            return bool(entity)  # new pyright conform placeholder
 
         if search_term:
 

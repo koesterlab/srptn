@@ -1,18 +1,22 @@
 [project]
-authors = [{ name = "Johannes Koester", email = "johannes.koester@uni-due.de" }]
+authors = [
+  { name = "Johannes Koester", email = "johannes.koester@uni-due.de" },
+  { name = "Devon Siemes", email = "devon.siemes@uni-due.de" },
+]
 name = "srptn"
-requires-python = ">= 3.11"
+requires-python = ">=3.12, <3.13"
 version = "0.1.0"
 dependencies = [
-    "streamlit>=1.45.1,<2",
-    "humanfriendly>=10.0,<11",
-    "libtmux>=0.46.1,<0.47",
-    "snakedeploy>=0.11.0,<0.12",
-    "snakemake>=9.5.1,<10",
-    "streamlit-ace>=0.1.1,<0.2",
-    "packaging>=21.0,<22.0",
-    "setuptools>=80.8.0,<81"
-, "streamlit-tags>=1.2.8,<2", "polars>=1.30.0,<2"]
+  "streamlit>=1.46.1,<2",
+  "humanfriendly>=10.0,<11",
+  "libtmux>=0.46.1,<0.47",
+  "snakedeploy>=0.11.0,<0.12",
+  "snakemake>=9.5.1,<10",
+  "streamlit-ace>=0.1.1,<0.2",
+  "packaging>=21.0,<22.0",
+  "setuptools>=80.8.0,<81",
+  "polars>=1.30.0,<2",
+]
 
 [build-system]
 build-backend = "hatchling.build"
@@ -29,13 +33,46 @@ srptn = { path = ".", editable = true }
 tmux = ">=3.5,<4"
 
 [tool.pixi.feature.dev]
-pypi-dependencies = {pytest = "*", ruff = "*", pyright = "*"}
+pypi-dependencies = { pytest = "*", ruff = "*", pyright = "*" }
 
 [tool.pixi.environments]
 dev = ["dev"]
 
 [tool.pixi.tasks]
-server = "streamlit run src/srptn/home.py"
+server = "(cd src/srptn/ && streamlit run home.py)"
 tests = "pytest -v"
 fmt = "ruff format src tests"
 lint = "ruff check src tests && pyright src tests"
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["ALL"]
+
+ignore = [
+  "ANN003", # typed **kwargs
+  "ANN401", # dynamically type variables (typing.Any)
+  "D100",   # doc in public module
+  "D104",   # doc in local module
+  "D200",   # see D212
+  "D203",   # redundant rule, ignored by default
+  "D212",   # summary of first line, either this and D200 or E501 line too long
+
+  "EM101",  # string in exception
+  "EM102",  # f-string in exception
+  "N999",   # module name
+  "S102",   # use of execy
+  "S506",   # custom yaml loader and dumper
+  "TRY003", # long string in exception
+]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"tests/**/*.py" = [
+  "S101", # asserts allowed in pytests
+  "ANN",  # annotations
+  "D",    # missing docs in tests
+]
+
+[tool.ruff.lint.pylint]
+max-args = 10 # maximum number of arguments for a function

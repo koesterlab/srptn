@@ -22,21 +22,21 @@ if data_store.has_entity(address):
 desc = desc_editor("new_dataset-meta")
 
 files = st.file_uploader("Files", accept_multiple_files=True)
-
-multi_file = len(files) > 1
-
+files_number = len(files) if files else 0
+multi_file = files_number > 1
 sheet = st.file_uploader("Sample Sheet") if multi_file else None
+sheet_table = None
 
-if sheet:
-    sheet = load_data_table(sheet, "upload")
+if sheet and files:
+    sheet_table = load_data_table(sheet)
 
-    sheet = sheet.with_columns([pl.col(pl.Utf8).str.strip_chars()])
+    sheet_table = sheet_table.with_columns([pl.col(pl.Utf8).str.strip_chars()])
 
     st.text("Sample sheet")
-    st.dataframe(sheet)
+    st.dataframe(sheet_table)
 
     for f in files:
-        if not sheet.select(pl.any_horizontal((pl.all() == f.name).any())).item():
+        if not sheet_table.select(pl.any_horizontal((pl.all() == f.name).any())).item():
             st.error(f"Uploaded file {f.name} not found in sample sheet")
             st.stop()
 
@@ -51,8 +51,8 @@ if store:
     Dataset(
         address=address,
         desc=desc,
-        sheet=sheet,
+        sheet=sheet_table,
         data_files=files,
         meta_files=meta_files,
     ).store(data_store)
-    st.success(f"Stored {len(files)} files in {address}")
+    st.success(f"Stored {files_number} files in {address}")

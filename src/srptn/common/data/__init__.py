@@ -3,6 +3,7 @@ import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 
 import polars as pl
 
@@ -19,10 +20,10 @@ class Address:
     @classmethod
     def from_str(cls, value: str) -> "Address":
         """Parse an address from a string."""
-        from common.data.entities import _entity_types
+        from srptn.common.data.entities import EntityType
 
         owner, entity, *categories, name = value.split("/")
-        entity = _entity_types[entity]
+        entity = EntityType[entity].value
         return cls(owner=owner, entity_type=entity, categories=categories, name=name)
 
     @classmethod
@@ -40,17 +41,19 @@ class Address:
 
     def __str__(self) -> str:
         """Return the address as a formatted string."""
-        return f"{self.owner}/{self.entity_type.__name__.lower()}/{'/'.join(self.categories)}/{self.name}"
+        return f"""{self.owner}/{self.entity_type.__name__.lower()}/{
+            "/".join(self.categories)
+        }/{self.name}"""
 
 
-@dataclass
+@dataclass()
 class Entity(ABC):
     """Abstract base class for entities with an address and description."""
 
     address: Address
     desc: str
 
-    def __post_init__(self) -> "Entity":
+    def __post_init__(self) -> None:
         """Validate the entity type against the address."""
         if self.address.entity_type != self.__class__:
             raise ValueError(f"Address type must be '{self.__class__.__name__}'")
@@ -62,7 +65,7 @@ class Entity(ABC):
 
     @classmethod
     @abstractmethod
-    def load(cls, data_store: "DataStore", address: Address) -> None:
+    def load(cls, data_store: "DataStore", address: Address) -> "Entity":
         """Abstract method to load an entity from a data store."""
         ...
 
@@ -70,8 +73,10 @@ class Entity(ABC):
         """Return the string representation of the entity."""
         return str(self.address)
 
-    def __eq__(self, other: "Entity") -> bool:
+    def __eq__(self, other: object) -> bool:
         """Check equality based on class and address."""
+        if not isinstance(other, Entity):
+            return NotImplemented
         return self.__class__ == other.__class__ and self.address == other.address
 
 
@@ -110,9 +115,9 @@ class DataStore(ABC):
     def load_file(
         self,
         address: Address,
-        file_path: str,
+        file_path: Path,
         file_type: FileType,
-    ) -> io.IOBase:
+    ) -> io.BufferedReader:
         """Abstract method to load a file from the data store."""
         ...
 
@@ -120,7 +125,7 @@ class DataStore(ABC):
     def has_file(
         self,
         address: Address,
-        file_path: str,
+        file_path: Path,
         file_type: FileType,
     ) -> bool:
         """Abstract method to check if a file exists in the data store."""
@@ -136,7 +141,7 @@ class DataStore(ABC):
         self,
         address: Address,
         file: io.IOBase,
-        file_path: str,
+        file_path: Path,
         file_type: FileType,
     ) -> None:
         """Abstract method to store a file in the data store."""
@@ -168,6 +173,33 @@ class DataStore(ABC):
         ...
 
     @abstractmethod
-    def has_entity(self, address: Address) -> None:
+    def has_entity(self, address: Address) -> bool:
         """Abstract method to check if an Entity exists in the data store."""
+        ...
+
+    @staticmethod
+    @abstractmethod
+    def as_path(base: Path, address: Address) -> Path:
+        """Abstract method to convert a base path and address into a full path."""
+        ...
+
+    @abstractmethod
+    def desc_path(self, address: Address) -> Path:
+        """
+        Abstract method to return the path to the description file for the address.
+        """
+        ...
+
+    @abstractmethod
+    def sheet_path(self, address: Address, name: str) -> Path:
+        """
+        Abstract method to return the path to a sheet file for the address and name.
+        """
+        ...
+
+    @abstractmethod
+    def files_path(self, address: Address, file_type: FileType) -> Path:
+        """
+        Abstract method to return the path to the files dir for a address and type.
+        """
         ...

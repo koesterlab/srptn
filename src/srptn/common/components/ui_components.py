@@ -7,7 +7,8 @@ def update(key: str) -> None:
 
 
 def persistent_multiselect(label: str, names: list, key: str) -> list:
-    """Create a multiselect widget in Streamlit that persists its selection state across page reloads.
+    """
+    Create a multiselect widget that persists its selection state across page reloads.
 
     :param label: The label for the multiselect widget.
     :param names: A list of options to display in the multiselect.
@@ -28,7 +29,8 @@ def persistent_multiselect(label: str, names: list, key: str) -> list:
 
 
 def persistent_text_input(label: str, key: str, placeholder: str = "") -> str:
-    """Create a persistent text input widget in Streamlit.
+    """
+    Create a persistent text input widget.
 
     :param label: The label for the text input widget.
     :param key: A unique key to store the text input value in Streamlit's session state.
@@ -56,7 +58,8 @@ def persistent_text_area(
     placeholder: str = "",
     helpstr: str = "",
 ) -> str:
-    """Create a persistent text area widget in Streamlit.
+    """
+    Create a persistent text area widget.
 
     :param label: The label for the text area widget.
     :param key: A unique key to store the text area value in Streamlit's session state.
@@ -81,7 +84,8 @@ def persistent_text_area(
 
 
 def toggle_button(label: str, key: str, icon: str | None = None) -> bool:
-    """Create a toggle button in Streamlit.
+    """
+    Create a toggle button.
 
     :param label: The label for the button.
     :param key: A unique key to store the toggle state in Streamlit's session state.

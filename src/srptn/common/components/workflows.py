@@ -17,7 +17,8 @@ def workflow_selector(
     address: Address,
     data_store: DataStore,
 ) -> WorkflowManager | None:
-    """Create a workflow selector widget in Streamlit with persistent text inputs.
+    """
+    Create a workflow selector widget in Streamlit with persistent text inputs.
 
     :return: The selected workflow or None if the input is incomplete.
     """
@@ -66,7 +67,8 @@ def workflow_selector(
 
 
 def workflow_editor(workflow_manager: WorkflowManager) -> None:
-    """Create and edit the configuration of a workflow.
+    """
+    Create and edit the configuration of a workflow.
 
     :param workflow: The workflow object containing URL, tag, and branch information.
     :return: The temporary directory where the workflow is deployed.

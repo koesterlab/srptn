@@ -6,7 +6,8 @@ from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 
 def enforce_typing(data: pl.DataFrame, schema: dict) -> pl.DataFrame:
-    """Enforces data types of a Polars DataFrame based on a provided schema.
+    """
+    Enforces data types of a Polars DataFrame based on a provided schema.
 
     :param data: The input DataFrame whose columns need to be typed according
         to the schema.
@@ -17,10 +18,10 @@ def enforce_typing(data: pl.DataFrame, schema: dict) -> pl.DataFrame:
     """
     for field, field_info in schema.get("properties", {}).items():
         match field_info["type"]:
-            case typing if typing == "string":
-                field_type = str
             case typing if typing == "number":
                 field_type = float if "." in str(data.select(pl.first(field))) else int
+            case typing:
+                field_type = str
         try:
             # Cast the column to the specified type
             data = data.with_columns(pl.col(field).cast(field_type))
@@ -35,7 +36,8 @@ def enforce_typing(data: pl.DataFrame, schema: dict) -> pl.DataFrame:
 
 
 def get_type_specific_default(dtype: pl.datatypes.DataType) -> str | float | int | None:
-    """Return the appropriate padding value based on the column's data type.
+    """
+    Return the appropriate padding value based on the column's data type.
 
     :param dtype: The Polars data type of the column.
     :returns: The padding value based on the type.
@@ -55,19 +57,18 @@ def get_type_specific_default(dtype: pl.datatypes.DataType) -> str | float | int
 
 def load_data_table(
     file: UploadedFile | Path,
-    source: str = "file",
-) -> pl.DataFrame | None:
-    """Load a data table from an uploaded file or a file path based on the source.
+) -> pl.DataFrame:
+    """
+    Load a data table from an uploaded file or a file path based on the source.
 
     :param file: The uploaded file or file path to load the data from.
-    :param source: The source of the file - either 'upload' or 'file'.
-        Defaults to 'file'.
+
     :returns: The loaded data table as a Polars DataFrame.
     :raises FileNotFoundError: If the file does not exist when source is 'file'.
     :raises StreamlitError: For unsupported file formats or missing files.
     """
 
-    def read_data(file: UploadedFile | Path, file_type: str) -> pl.DataFrame | None:
+    def read_data(file: UploadedFile | Path, file_type: str) -> pl.DataFrame:
         if file_type in ["text/tab-separated-values", ".tsv"]:
             return pl.read_csv(file, separator="\t")
         if file_type in ["text/csv", ".csv"]:
@@ -81,26 +82,27 @@ def load_data_table(
             f"""Unsupported file format for sample sheet {file.name},
              Use: TSV, CSV or XLSX""",
         )
-        st.stop()
-        return None
+        return st.stop()
 
-    file_type = file.type if source == "upload" else file.suffix
-    if source == "upload":
-        return read_data(file, file_type)
+    file_type = file.type if isinstance(file, UploadedFile) else file.suffix
     try:
         return read_data(file, file_type)
     except FileNotFoundError:
         st.error(f"File {file.name} does not exist")
-        return None
+        return pl.DataFrame()
 
 
 def merge_dataframes(
     data_modified: pl.DataFrame,
-    columns_to_add: pl.DataFrame,
+    columns_to_add: list[pl.DataFrame],
     selected: str,
 ) -> pl.DataFrame:
-    """Merge new columns into the existing dataframe and return the updated dataframe."""
-    columns_to_add_combined = pl.concat(columns_to_add, how="horizontal").with_columns(
+    """
+    Merge new columns into the existing dataframe and return the updated dataframe.
+    """
+    columns_to_add_combined = pl.DataFrame(
+        pl.concat(columns_to_add, how="horizontal"),
+    ).with_columns(
         pl.lit(selected, dtype=pl.String).alias("datasetid"),
     )
 
@@ -121,7 +123,8 @@ def merge_dataframes(
 
 
 def save_data_table(data: pl.DataFrame, path: Path) -> None:
-    """Save a data table to a file based on the file extension.
+    """
+    Save a data table to a file based on the file extension.
 
     :param data: The Polars DataFrame to save.
     :param path: The file path where the data should be saved.
